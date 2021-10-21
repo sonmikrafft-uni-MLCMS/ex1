@@ -1,14 +1,20 @@
-from typing import Optional
+from enum import Enum
+import numpy as np
+
+
+class CellState(Enum):
+    EMPTY = 'E'
+    PEDESTRIAN = 'P'
+    OBSTACLE = 'O'
+    TARGET = 'T'
 
 
 class CellularAutomaton():
-    def __init__(self, config_file: Optional[str] = None, grid_size: Optional[tuple[int, int]] = None):
-        if config_file is None and grid_size is None:
-            raise ValueError('Either need "config_file" or "grid_size" to be specified.')
+    def __init__(self, grid_size: tuple[int, int]):
+        """
+        Creates cellular automaton by setting up an empty grid of states and utilities.
 
-        if config_file is not None:
-            # parse config file
-            pass
-        else:
-            # create empty grid according to grid_size
-            pass
+        :param grid_size: Tuple of 2D grid dimensions
+        """
+        self.grid = np.full(grid_size, CellState.EMPTY)
+        self.utilities = np.zeros(grid_size)
