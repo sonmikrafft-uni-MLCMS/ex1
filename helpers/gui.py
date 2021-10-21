@@ -1,62 +1,44 @@
 from helpers.cellular_automaton import CellularAutomaton, CellState
 import tkinter as tk
+import pandas as pd
+from ast import literal_eval as make_tuple
 
 
-# def fill_from_scenario_file(scenario_file: str):
-#     # create pandas dataframe
-#     data = pd.read_csv(scenario_file, delimiter=';')
-#     data = data.loc[0]
+def fill_from_scenario_file(scenario_file: str) -> CellularAutomaton:
+    df = pd.read_csv(scenario_file, delimiter=';')
 
-#     # extract values from dataframe
-#     grid_size = data.grid_size
+    grid_size = make_tuple(df['grid_size'][0])
+    obstacle_positions = df['initial_position_obstacles']
+    target_positions = df['position_target_zone']
+    pedestrian_positions = df['initial_position_pedestrian']
 
-#     # grid_x, grid_y = get_values_from_csv_array(self, grid_size)
+    my_cellular_automaton = CellularAutomaton(grid_size)
 
-#     self.grid_rows, self.grid_columns = 50, 50
-#     pedestrian_id = data.pedestrian_id
-#     pedestrain_position = data.initial_position_pedestrian
-#     print(self.grid_rows)
+    for obstacle_position in obstacle_positions:
+        my_cellular_automaton.add(CellState.OBSTACLE, make_tuple(obstacle_position))
 
+    for target_position in target_positions:
+        my_cellular_automaton.add(CellState.TARGET, make_tuple(target_position))
 
-# def get_values_from_csv_array(self, array_name):
-#     list_of_array_values = list(array_name[1:-1].split(", "))
-#     return list_of_array_values[0], list_of_array_values[1]
+    for pedestrian_position in pedestrian_positions:
+        my_cellular_automaton.add(CellState.PEDESTRIAN, make_tuple(pedestrian_position))
 
-#     # draw the grid according to scenario details
-
-
-# def add_text_descriptors(self):
-#     self.myCanvas.create_text(700, 10, text='Scenario Details:', font="Times 15 bold", anchor=tk.N)
-#     self.myCanvas.create_text(700, 35, text='Displayed File: ' +
-#                               str(self.scenario_file), font="Times 10 bold", anchor=tk.N)
-#     self.myCanvas.create_text(700, 70, text='Grid Size: ' + str(self.grid_rows) +
-#                               " x " + str(self.grid_columns), font="Times 12 bold", anchor=tk.N)
-#     self.myCanvas.create_text(700, 90, text='Number of Pedestrians: ' +
-#                               str(self.pedestrian_counter), font="Times 12 bold", anchor=tk.N)
-#     self.myCanvas.create_text(700, 110, text='Number of Obstacle Fields: ' +
-#                               str(self.obstacle_counter), font="Times 12 bold", anchor=tk.N)
-#     self.myCanvas.create_text(700, 130, text='Number of Target Fields: ' +
-#                               str(self.pedestrian_counter), font="Times 12 bold", anchor=tk.N)
+    return my_cellular_automaton
 
 
 class GUI:
     def __init__(self, root, scenario_file: str):
-        # self.scenario_file = scenario_file
-        # self.my_cellular_automaton = fill_from_scenario_file(scenario_file)
+        self.my_cellular_automaton = fill_from_scenario_file(scenario_file)
 
-        # create cellular automaton
-        self.my_cellular_automaton = CellularAutomaton((50, 50))
-        self.my_cellular_automaton.add(CellState.OBSTACLE, (10, 10))
-        self.my_cellular_automaton.add(CellState.PEDESTRIAN, (20, 10))
-        self.my_cellular_automaton.add(CellState.TARGET, (30, 10))
+        n_rows, n_cols = self.my_cellular_automaton.grid.shape
+        n_pedestrians = (self.my_cellular_automaton.grid == CellState.PEDESTRIAN).sum()
+        n_obstacles = (self.my_cellular_automaton.grid == CellState.OBSTACLE).sum()
+        n_targets = (self.my_cellular_automaton.grid == CellState.TARGET).sum()
 
         self.setup_container(root)
         self.setup_canvas()
-        self.setup_grid()
-
-        # self.pedestrian_counter = 0
-        # self.obstacle_counter = 0
-        # self.target_counter = 0
+        self.setup_grid(n_rows, n_cols)
+        self.add_static_text_descriptors(scenario_file, n_rows, n_cols, n_pedestrians, n_obstacles, n_targets)
 
         # visualize start state by iterating over our grid
         self.visualize_state()
@@ -69,37 +51,30 @@ class GUI:
                 self.add_item_to_grid(ix, iy, cell)
 
     def add_item_to_grid(self, row, col, cell_state):
-        # simple case switch to determine color for visualisation purposes in the grid
         if cell_state == CellState.EMPTY:
             return
 
         if cell_state == CellState.PEDESTRIAN:
             cell_color = "red"
-            # self.pedestrian_counter += 1
         elif cell_state == CellState.OBSTACLE:
             cell_color = "violet"
-            # self.obstacle_counter += 1
         elif cell_state == CellState.TARGET:
             cell_color = "yellow"
-            # self.target_counter += 1
 
-        # find cell and fill with state dependent color
         item_id = self.gui_rect[row][col]
+        # TODO add one of {'P', 'O', 'T'} as text of rectangle
         self.myCanvas.itemconfig(item_id, fill=cell_color)
 
-    # self.add_text_descriptors()
-
-    # pick scenario csv file
-    # self.scenario_file = "scenario_0.csv"
-
-    # define grid structures
-    # self.rect = {}
-
-    # gets csv scenario file and extract following scenario parameters:
-    # general parameters:  grid_size, position_target_zone, initial_position_obstacles
-    # person specific parameters: pedestrian_id, initial_position_pedestrian, avg_velocity_pedestrian
-
-    # get the two inner values of a string defined in the csv as following tuple "(first_value, second_value)"
+    def add_static_text_descriptors(self, scenario_file: str, n_rows, n_cols, n_pedestrians, n_obstacles, n_targets):
+        self.myCanvas.create_text(700, 10, text='Scenario Details:', font="Times 15 bold", anchor=tk.N)
+        self.myCanvas.create_text(700, 35, text=f'Displayed File: {scenario_file}', font="Times 10 bold", anchor=tk.N)
+        self.myCanvas.create_text(700, 70, text=f'Grid Size: {n_rows} x  {n_cols}', font="Times 12 bold", anchor=tk.N)
+        self.myCanvas.create_text(
+            700, 90, text=f'Number of Pedestrians: {n_pedestrians}', font="Times 12 bold", anchor=tk.N)
+        self.myCanvas.create_text(
+            700, 110, text=f'Number of Obstacle Fields: {n_obstacles}', font="Times 12 bold", anchor=tk.N)
+        self.myCanvas.create_text(
+            700, 130, text=f'Number of Target Fields: {str(n_targets)}', font="Times 12 bold", anchor=tk.N)
 
     def setup_container(self, root):
         self.container = tk.Frame(root)
@@ -112,14 +87,13 @@ class GUI:
         self.myCanvas = tk.Canvas(self.container, width=window_width, height=window_height, highlightthickness=0)
         self.myCanvas.pack(side="top", fill="both", expand="true")
 
-    def setup_grid(self):
+    def setup_grid(self, n_rows: int, n_cols: int):
         cell_width = 10
         cell_height = 10
 
-        rows, cols = self.my_cellular_automaton.grid.shape
-        self.gui_rect = [[None for _ in range(cols)] for _ in range(rows)]
-        for column in range(cols):
-            for row in range(rows):
+        self.gui_rect = [[None for _ in range(n_cols)] for _ in range(n_rows)]
+        for column in range(n_cols):
+            for row in range(n_rows):
                 x1 = column * cell_width
                 y1 = row * cell_height
                 x2 = x1 + cell_width
