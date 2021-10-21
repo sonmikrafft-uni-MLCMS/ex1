@@ -1,0 +1,2 @@
+class CellularAutomaton():
+    pass
