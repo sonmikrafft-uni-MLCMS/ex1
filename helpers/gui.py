@@ -60,6 +60,8 @@ class GUI:
             cell_color = "violet"
         elif cell_state == CellState.TARGET:
             cell_color = "yellow"
+        else:
+            cell_color = "white"
 
         item_id = self.gui_rect[row][col]
         # TODO add one of {'P', 'O', 'T'} as text of rectangle
