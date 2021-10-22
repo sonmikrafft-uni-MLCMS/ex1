@@ -9,6 +9,22 @@ class CellState(Enum):
     TARGET = 'T'
 
 
+def cell_state_to_visualized(x: Enum) -> str:
+    """
+    Helper function to convert Enum to its string value.
+
+    :param x: Enum object to be converted
+    :return: Corresponding string value of the object
+    """
+    if x == CellState.EMPTY:
+        return ' '
+    if x == CellState.PEDESTRIAN:
+        return 'P'
+    if x == CellState.OBSTACLE:
+        return 'O'
+    return 'T'
+
+
 class CellularAutomaton():
     def __init__(self, grid_size: tuple[int, int]):
         """
@@ -51,3 +67,12 @@ class CellularAutomaton():
         self._check_valid_idx(pos_idx)
         if self.grid[pos_idx] != CellState.EMPTY:
             raise ValueError(f'Trying to write value into grid position {pos_idx}, but not empty.')
+
+    def visualize_grid(self) -> None:
+        """
+        Visualizes the current state grid by printing it on the console nicely.
+        """
+        vfunc = np.vectorize(cell_state_to_visualized)
+        visualized_grid = vfunc(self.grid)
+        output_str = '[' + ']\n['.join(['\t'.join([str(cell) for cell in row]) for row in visualized_grid]) + ']'
+        print(output_str)
