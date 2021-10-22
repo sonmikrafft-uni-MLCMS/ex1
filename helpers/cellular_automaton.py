@@ -26,7 +26,7 @@ def cell_state_to_visualized(x: Enum) -> str:
 
 
 class CellularAutomaton():
-    def __init__(self, grid_size: tuple[int, int]):
+    def __init__(self, grid_size: tuple[int, int]) -> None:
         """
         Creates cellular automaton by setting up an empty grid of states and utilities.
 
@@ -35,7 +35,7 @@ class CellularAutomaton():
         self.grid = np.full(grid_size, CellState.EMPTY)
         self.utilities = np.zeros(grid_size)
 
-    def add(self, what: CellState, pos_idx: tuple[int, int]):
+    def add(self, what: CellState, pos_idx: tuple[int, int]) -> None:
         """
         Fill a yet empty cell with either a pedestrian, an obstace, or a target.
 
@@ -47,7 +47,7 @@ class CellularAutomaton():
         self._check_empty(pos_idx)
         self.grid[(pos_idx)] = what
 
-    def _check_valid_idx(self, pos_idx: tuple[int, int]):
+    def _check_valid_idx(self, pos_idx: tuple[int, int]) -> None:
         """
         Checks if we can access the grid with the given indices.
 
@@ -57,7 +57,7 @@ class CellularAutomaton():
         if not all((idx < grid) and (idx >= 0) for (idx, grid) in zip(pos_idx, self.grid.shape)):
             raise IndexError(f'Trying to access grid position {pos_idx} but grid is only of size {self.grid.shape}.')
 
-    def _check_empty(self, pos_idx: tuple[int, int]):
+    def _check_empty(self, pos_idx: tuple[int, int]) -> None:
         """
         Checks if cell is empty.
 
