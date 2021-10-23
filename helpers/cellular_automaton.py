@@ -86,21 +86,24 @@ class CellularAutomaton():
         output_str = '[' + ']\n['.join(['  '.join([str(cell) for cell in row]) for row in visualized_grid]) + ']'
         print(output_str)
 
-    def simulate_next_n(self, n: int) -> None:
+    def simulate_next_n(self, n: int, target_absorbs: bool = True) -> None:
         """
         Simulate next n steps by calling `simulate_next` n-times.
 
         :param n: Number of iterations to simulate
+        :param target_absorbs: Flag that tells if a pedestrian is absorbed when going onto the target or not.
         """
         for _ in range(n):
-            self.simulate_next()
+            self.simulate_next(target_absorbs=target_absorbs)
 
-    def simulate_next(self) -> None:
+    def simulate_next(self, target_absorbs: bool = True) -> None:
         """
         Propogate states of pedestrian one forward and add new grid state into the history.
 
         Pedestrians move to the cell with the best utility value in their direct surrounding.
         Only cells that are no obstacles are considered.
+
+        :param target_absorbs: Flag that tells if a pedestrian is absorbed when going onto the target or not.
         """
         next_grid = self.grid.copy()
 
@@ -117,6 +120,8 @@ class CellularAutomaton():
                     best_idx = curr_idx
                     for potential_next_idx in surrounding_idx:
                         if self.grid[potential_next_idx] in [CellState.OBSTACLE, CellState.PEDESTRIAN]:
+                            continue
+                        if not target_absorbs and self.grid[potential_next_idx] == CellState.TARGET:
                             continue
                         if self.utilities[potential_next_idx] < best_utility:
                             best_utility = self.utilities[potential_next_idx]
