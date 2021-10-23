@@ -74,5 +74,5 @@ class CellularAutomaton():
         """
         vfunc = np.vectorize(cell_state_to_visualized)
         visualized_grid = vfunc(self.grid)
-        output_str = '[' + ']\n['.join(['\t'.join([str(cell) for cell in row]) for row in visualized_grid]) + ']'
+        output_str = '[' + ']\n['.join(['  '.join([str(cell) for cell in row]) for row in visualized_grid]) + ']'
         print(output_str)
