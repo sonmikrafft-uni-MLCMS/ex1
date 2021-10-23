@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional
+from typing import Optional, Dict
 import numpy as np
 
 
@@ -34,7 +34,8 @@ class CellularAutomaton():
         :param grid_size: Tuple of 2D grid dimensions
         """
         self.grid = np.full(grid_size, CellState.EMPTY)
-        self.grid_history = [self.grid.copy()]  # keeps history of grid state along simulated iterations
+        self.curr_iter = 0  # current iteration of the simulation
+        self.grid_history = {}  # type: Dict[int, np.ndarray]
         self.utilities = np.zeros(grid_size)
 
     def add(self, what: CellState, pos_idx: tuple[int, int]) -> None:
@@ -77,12 +78,24 @@ class CellularAutomaton():
         if self.grid[pos_idx] != CellState.EMPTY:
             raise ValueError(f'Trying to write value into grid position {pos_idx}, but not empty.')
 
-    def visualize_grid(self) -> None:
+    def visualize_grid(self, iteration: Optional[int] = None) -> None:
         """
-        Visualizes the current state grid by printing it on the console nicely.
+        Visualizes the state grid by printing it on the console nicely.
+
+        Optionally, one can pass an iteration number at most of the current iteration to visualize the grid at that
+        point.
+
+        :param iteration: Optionally specify to visualize the grid at that specific tieration in the past
+        :raises ValueError: If specified iteration number is not within [0, current iteration]
         """
+        grid_to_visualize = self.grid.copy()
+
+        if iteration is not None:
+            self._check_iteration_number(iteration)
+            grid_to_visualize = self.grid_history[iteration].copy()
+
         vfunc = np.vectorize(cell_state_to_visualized)
-        visualized_grid = vfunc(self.grid)
+        visualized_grid = vfunc(grid_to_visualize)
         output_str = '[' + ']\n['.join(['  '.join([str(cell) for cell in row]) for row in visualized_grid]) + ']'
         print(output_str)
 
@@ -105,6 +118,7 @@ class CellularAutomaton():
 
         :param target_absorbs: Flag that tells if a pedestrian is absorbed when going onto the target or not.
         """
+        self._save_to_grid_history()
         next_grid = self.grid.copy()
 
         # Iterate over current grid
@@ -136,11 +150,13 @@ class CellularAutomaton():
                     if not self.grid[best_idx] == CellState.TARGET:
                         next_grid[best_idx] = CellState.PEDESTRIAN
 
-        self.grid_history.append(next_grid.copy())
         self.grid = next_grid
+        self.curr_iter += 1
+        self._save_to_grid_history()
 
     def _get_surrounding_idx(self, pos_idx: tuple[int, int]) -> set[tuple[int, int]]:
-        """ Given the current position in the 2D grid as a tuple of indices, return a set of valid surrounding
+        """
+        Given the current position in the 2D grid as a tuple of indices, return a set of valid surrounding
         positions.
 
         Example:
@@ -157,3 +173,36 @@ class CellularAutomaton():
         surrounding_idx = {move for move in moves_applied if self._check_valid_idx(
             move, surpess_error=True)}  # type: ignore
         return surrounding_idx  # type: ignore
+
+    def _save_to_grid_history(self) -> None:
+        """
+        Add copy of current grid property as an entry to the grid history dict, where the key is the curr_iter.
+        """
+        self.grid_history[self.curr_iter] = self.grid.copy()
+
+    def _check_iteration_number(self, i_to_check: int) -> None:
+        """
+        Check if iteration number is within [0, current iteration], i.e. valid.
+
+        :raises ValueError: If specified iteration number is not within [0, current iteration]
+        """
+        if i_to_check not in range(0, self.curr_iter + 1):
+            raise ValueError(f'Please specify an iteration number within [0,{self.curr_iter}]')
+
+    def reset_to_iteration(self, i_reset: int) -> None:
+        """
+        Reset the state of the cellular automaton to the specified iteration number.
+
+        By resetting the grid property to the grid entry in the grid_history dictionary, deleting entries after that
+        iteration and setting the current iteration property back to that value.
+
+        :param i_reset: Iteration to be resetted to
+        :raises ValueError: If specified iteration number is not within [0, current iteration]
+        """
+        self._check_iteration_number(i_reset)
+        self.grid = self.grid_history[i_reset].copy()
+
+        for i in range(i_reset + 1, self.curr_iter + 1):
+            del self.grid_history[i]
+
+        self.curr_iter = i_reset
