@@ -50,34 +50,6 @@ class CellularAutomaton():
         self._check_empty(pos_idx)
         self.grid[(pos_idx)] = what
 
-    def _check_valid_idx(self, pos_idx: tuple[int, int], surpess_error: bool = False) -> Optional[bool]:
-        """
-        Checks if we can access the grid with the given indices.
-
-        :param pos_idx: Index that we want to access, specified as 2D tuple
-        :param surpress_error: Flag if to surpress raising an IndexError and return False instead
-        :raises IndexError: If given index is invalid, either because index is negative or out of bounds
-        :return: True if valid, False invalid and surpress_error == True
-        """
-        if not all((idx < grid) and (idx >= 0) for (idx, grid) in zip(pos_idx, self.grid.shape)):
-            if not surpess_error:
-                raise IndexError(
-                    f'Trying to access grid position {pos_idx} but grid is only of size {self.grid.shape}.')
-            else:
-                return False
-        return True
-
-    def _check_empty(self, pos_idx: tuple[int, int]) -> None:
-        """
-        Checks if cell is empty.
-
-        :param pos_idx: Index that we want to check
-        :raises ValueError: If cell is not empty
-        """
-        self._check_valid_idx(pos_idx)
-        if self.grid[pos_idx] != CellState.EMPTY:
-            raise ValueError(f'Trying to write value into grid position {pos_idx}, but not empty.')
-
     def visualize_grid(self, iteration: Optional[int] = None) -> None:
         """
         Visualizes the state grid by printing it on the console nicely.
@@ -154,6 +126,24 @@ class CellularAutomaton():
         self.curr_iter += 1
         self._save_to_grid_history()
 
+    def reset_to_iteration(self, i_reset: int) -> None:
+        """
+        Reset the state of the cellular automaton to the specified iteration number.
+
+        By resetting the grid property to the grid entry in the grid_history dictionary, deleting entries after that
+        iteration and setting the current iteration property back to that value.
+
+        :param i_reset: Iteration to be resetted to
+        :raises ValueError: If specified iteration number is not within [0, current iteration]
+        """
+        self._check_iteration_number(i_reset)
+        self.grid = self.grid_history[i_reset].copy()
+
+        for i in range(i_reset + 1, self.curr_iter + 1):
+            del self.grid_history[i]
+
+        self.curr_iter = i_reset
+
     def _get_surrounding_idx(self, pos_idx: tuple[int, int]) -> set[tuple[int, int]]:
         """
         Given the current position in the 2D grid as a tuple of indices, return a set of valid surrounding
@@ -189,20 +179,30 @@ class CellularAutomaton():
         if i_to_check not in range(0, self.curr_iter + 1):
             raise ValueError(f'Please specify an iteration number within [0,{self.curr_iter}]')
 
-    def reset_to_iteration(self, i_reset: int) -> None:
+    def _check_valid_idx(self, pos_idx: tuple[int, int], surpess_error: bool = False) -> Optional[bool]:
         """
-        Reset the state of the cellular automaton to the specified iteration number.
+        Checks if we can access the grid with the given indices.
 
-        By resetting the grid property to the grid entry in the grid_history dictionary, deleting entries after that
-        iteration and setting the current iteration property back to that value.
-
-        :param i_reset: Iteration to be resetted to
-        :raises ValueError: If specified iteration number is not within [0, current iteration]
+        :param pos_idx: Index that we want to access, specified as 2D tuple
+        :param surpress_error: Flag if to surpress raising an IndexError and return False instead
+        :raises IndexError: If given index is invalid, either because index is negative or out of bounds
+        :return: True if valid, False invalid and surpress_error == True
         """
-        self._check_iteration_number(i_reset)
-        self.grid = self.grid_history[i_reset].copy()
+        if not all((idx < grid) and (idx >= 0) for (idx, grid) in zip(pos_idx, self.grid.shape)):
+            if not surpess_error:
+                raise IndexError(
+                    f'Trying to access grid position {pos_idx} but grid is only of size {self.grid.shape}.')
+            else:
+                return False
+        return True
 
-        for i in range(i_reset + 1, self.curr_iter + 1):
-            del self.grid_history[i]
+    def _check_empty(self, pos_idx: tuple[int, int]) -> None:
+        """
+        Checks if cell is empty.
 
-        self.curr_iter = i_reset
+        :param pos_idx: Index that we want to check
+        :raises ValueError: If cell is not empty
+        """
+        self._check_valid_idx(pos_idx)
+        if self.grid[pos_idx] != CellState.EMPTY:
+            raise ValueError(f'Trying to write value into grid position {pos_idx}, but not empty.')
