@@ -222,20 +222,16 @@ class CellularAutomaton():
     def set_utilities(self) -> None:
         """
         Set the utilities of each cell according to their respective distance to the closest target
-
-        :param grid_size: Defines the size of the utility array
         """
         # dev: self.utilities can be initialized with the following line in the init method
         self.utilities = np.full_like(self.utilities, np.inf)
 
-        # set target cells to zero
-        targets = zip(*np.where(self.grid == CellState.TARGET))
-        # self.utilities[targets] = 0
-        
-        """
+        targets = [tuple(a) for a in np.argwhere(self.grid == CellState.TARGET)]
+
         for target in targets:
             self.set_dijkstra_for_one_target(target)
-        """
+
+        np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
         print(self.utilities)
 
     def set_dijkstra_for_one_target(self, target: tuple[int, int]) -> None:
@@ -249,12 +245,11 @@ class CellularAutomaton():
         dist[target] = 0
         visited = np.full_like(self.utilities, False)
 
-        for _ in self.utilities:
+        for _ in self.utilities.flat:
             u = self.find_minimal_distance_cell(dist, visited)
             visited[u] = True
 
-            # TODO find neighbors
-            neighbors = []
+            neighbors = self._get_surrounding_idx(u)
 
             for v in neighbors:
                 if not visited[v] and dist[v] > dist[u] + _compute_distance(u, v):
@@ -274,10 +269,12 @@ class CellularAutomaton():
         min_dist = np.inf
         min_dist_cell = (0, 0)
 
-        for u in self.utilities:
-            if dist[u] < min_dist and not visited[u]:
-                min_dist = dist[u]
-                min_dist_cell = u
+        for fst, _ in enumerate(self.utilities):
+            for snd, _ in enumerate(self.utilities[fst]):
+                u = (fst, snd)
+                if dist[u] < min_dist and not visited[u]:
+                    min_dist = dist[u]
+                    min_dist_cell = u
         return min_dist_cell
 
 
