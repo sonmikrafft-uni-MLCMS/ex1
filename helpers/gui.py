@@ -1,3 +1,5 @@
+from tkinter import font
+from tkinter.constants import ANCHOR, N
 from helpers.cellular_automaton import CellularAutomaton, CellState
 import tkinter as tk
 import pandas as pd
@@ -39,6 +41,7 @@ class GUI:
         self.setup_canvas()
         self.setup_grid(n_rows, n_cols)
         self.add_static_text_descriptors(scenario_file, n_rows, n_cols, n_pedestrians, n_obstacles, n_targets)
+        self.add_dynamic_elements()
 
         # visualize start state by iterating over our grid
         self.visualize_state()
@@ -78,6 +81,55 @@ class GUI:
         self.myCanvas.create_text(
             700, 130, text=f'Number of Target Fields: {str(n_targets)}', font="Times 12 bold", anchor=tk.N)
 
+    def add_dynamic_elements(self):
+        btn_start_simulation = tk.Button(self.myCanvas, text = "Start Simulation", font="Times 12 bold", command=self.start_simulation)
+        btn_start_simulation.place(x=600, y=180, anchor=N)
+
+        btn_reset_simulation = tk.Button(self.myCanvas, text = "Reset Simulation", font="Times 12 bold", command=self.reset_simulation)
+        btn_reset_simulation.place(x=800, y=180, anchor=N) 
+
+        btn_simulation_settings = tk.Button(self.myCanvas, text = "Simulation Settings", font="Times 12 bold", command=self.simulation_settings)
+        btn_simulation_settings.place(x=610, y=240, anchor=N)  
+
+    def redraw_grid(self, n_current_time_step):
+        #TODO: redraw the GUI for current timestamp
+        pass
+        #display current time stamp in gui
+        self.myCanvas.create_text(700, 200, text=f'Current Time Step: {n_current_time_step}', font="Times 15 bold", anchor=tk.N)   
+
+    def simulation_settings(self):
+        #TODO: gets user input for start and end -> Missing: 1. Run internally whole simulation 2. access position history array 3. display 
+        master = tk.Tk()
+        master.title("Specifiy your Simulation Time Frame ")
+        master.geometry("375x80")
+
+        tk.Label(master, text="Start Time Step").grid(row=0)
+        tk.Label(master, text="End Time Step").grid(row=1)
+        
+        entry1 = tk.Entry(master)
+        entry2 = tk.Entry(master)
+
+        entry1.grid(row=0, column=1)
+        entry2.grid(row=1, column=1)
+
+        tk.Button(master, text='Start Simulation', command=lambda:[self.start_specified_simulation(entry1.get(),entry2.get()), master.destroy()]).grid(row=3, column=0, sticky=tk.W, pady=8)
+        tk.Button(master, text='Cancel', command= master.destroy).grid(row=3, column=1, sticky=tk.W, pady=8)        
+
+        master.mainloop()
+
+    def start_specified_simulation(self, n_start_time, n_end_time):
+        #TODO: write fct to run simulation from user input time stamp till user given time step
+        print(n_start_time)
+        print(n_end_time)
+
+    def start_simulation(self):
+        #TODO: write fct to run and visualize whole simulation from start to end 
+        pass
+    
+    def reset_simulation(self):
+        #TODO: write fct to rerun the simulation from beginning to end
+        pass
+
     def setup_container(self, root):
         self.container = tk.Frame(root)
         self.container.pack()
@@ -86,7 +138,7 @@ class GUI:
         window_width = 1000
         window_height = 1000
 
-        self.myCanvas = tk.Canvas(self.container, width=window_width, height=window_height, highlightthickness=0)
+        self.myCanvas = tk.Canvas(self.container, width=window_width, height=window_height, highlightthickness=0, background="grey")
         self.myCanvas.pack(side="top", fill="both", expand="true")
 
     def setup_grid(self, n_rows: int, n_cols: int):
