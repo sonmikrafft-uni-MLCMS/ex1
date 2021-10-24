@@ -1,29 +1,5 @@
-from helpers.cellular_automaton import CellularAutomaton, CellState
+from helpers.cellular_automaton import CellState, fill_from_scenario_file
 import tkinter as tk
-import pandas as pd
-from ast import literal_eval as make_tuple
-
-
-def fill_from_scenario_file(scenario_file: str) -> CellularAutomaton:
-    df = pd.read_csv(scenario_file, delimiter=';')
-
-    grid_size = make_tuple(df['grid_size'][0])
-    obstacle_positions = df['initial_position_obstacles']
-    target_positions = df['position_target_zone']
-    pedestrian_positions = df['initial_position_pedestrian']
-
-    my_cellular_automaton = CellularAutomaton(grid_size)
-
-    for obstacle_position in obstacle_positions:
-        my_cellular_automaton.add(CellState.OBSTACLE, make_tuple(obstacle_position))
-
-    for target_position in target_positions:
-        my_cellular_automaton.add(CellState.TARGET, make_tuple(target_position))
-
-    for pedestrian_position in pedestrian_positions:
-        my_cellular_automaton.add(CellState.PEDESTRIAN, make_tuple(pedestrian_position))
-
-    return my_cellular_automaton
 
 
 class GUI:
