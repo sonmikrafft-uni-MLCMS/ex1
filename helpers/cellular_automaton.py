@@ -1,6 +1,8 @@
 from enum import Enum
 from typing import Optional, Dict
 import numpy as np
+import pandas as pd
+from ast import literal_eval as make_tuple
 
 
 class CellState(Enum):
@@ -206,3 +208,37 @@ class CellularAutomaton():
         self._check_valid_idx(pos_idx)
         if self.grid[pos_idx] != CellState.EMPTY:
             raise ValueError(f'Trying to write value into grid position {pos_idx}, but not empty.')
+
+
+def fill_from_scenario_file(scenario_file: str) -> CellularAutomaton:
+    """
+    Read specified scenario file and creates a matching CellularAutomaton object.
+
+    Scenario file needs to have the following columns:
+    - 'grid_size', one row only, specifies grid size
+    - 'initial_position_obstacles', tuples of form (x, y), one tuple per row, specifies obstacles positions
+    - 'position_target_zone', tuples of form (x, y), one tuple per row, specifies target positions
+    - 'initial_position_pedestrian', tuples of form (x, y), one tuple per row, specifies pedestrian positions
+
+    :param scenario_file: Path to .csv file
+    :return: CellularAutomaton object matching the scenario file configuration
+    """
+    df = pd.read_csv(scenario_file, delimiter=';')
+
+    grid_size = make_tuple(df['grid_size'][0])
+    obstacle_positions = df['initial_position_obstacles']
+    target_positions = df['position_target_zone']
+    pedestrian_positions = df['initial_position_pedestrian']
+
+    my_cellular_automaton = CellularAutomaton(grid_size)
+
+    for obstacle_position in obstacle_positions:
+        my_cellular_automaton.add(CellState.OBSTACLE, make_tuple(obstacle_position))
+
+    for target_position in target_positions:
+        my_cellular_automaton.add(CellState.TARGET, make_tuple(target_position))
+
+    for pedestrian_position in pedestrian_positions:
+        my_cellular_automaton.add(CellState.PEDESTRIAN, make_tuple(pedestrian_position))
+
+    return my_cellular_automaton
