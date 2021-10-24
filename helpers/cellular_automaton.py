@@ -68,6 +68,43 @@ class CellularAutomaton():
         if self.grid[pos_idx] != CellState.EMPTY:
             raise ValueError(f'Trying to write value into grid position {pos_idx}, but not empty.')
 
+    def _get_distance_based_utility_grid(self) -> np.ndarray:
+        """
+        Get utility grid filled by euclidean distance to closest target.
+
+        - target cells are filled with 0
+        - obstacle cells are filled with infinity
+        - other cells are filled with euclidean distance to closest target
+
+        :return: Numpy array of same shape as state grid filled with utility values
+        """
+        utility_grid = np.zeros(self.grid.shape)
+
+        # get idx of all targets
+        idx_targets = [tuple(a) for a in np.argwhere(self.grid == CellState.TARGET)]
+        if len(idx_targets) == 0:
+            raise ValueError('No target in grid.')
+
+        # get idx of all non target and non obstacle cells
+        idx_movables = [tuple(a) for a in np.argwhere(
+            (self.grid != CellState.TARGET) & (self.grid != CellState.OBSTACLE))]
+        # iterate over movable cells
+        for idx_movable in idx_movables:
+            smallest_distance = None
+
+            # iterate over target cells
+            for idx_target in idx_targets:
+                eucl_distance = np.linalg.norm(np.array(idx_movable) - np.array(idx_target))
+                if smallest_distance is None or eucl_distance < smallest_distance:
+                    smallest_distance = eucl_distance
+
+            utility_grid[idx_movable] = smallest_distance
+
+        # treat obstacles
+        utility_grid[self.grid == CellState.OBSTACLE] = np.infty
+
+        return utility_grid
+
     def visualize_grid(self) -> None:
         """
         Visualizes the current state grid by printing it on the console nicely.
