@@ -76,3 +76,72 @@ class CellularAutomaton():
         visualized_grid = vfunc(self.grid)
         output_str = '[' + ']\n['.join(['  '.join([str(cell) for cell in row]) for row in visualized_grid]) + ']'
         print(output_str)
+
+    def set_utilities(self, grid_size: tuple[int, int]) -> None:
+        """
+        Set the utilities of each cell according to their respective distance to the closest target
+
+        :param grid_size: Defines the size of the utility array
+        """
+        # dev: self.utilities can be initialized with the following line in the init method
+        self.utilities = np.full(grid_size, np.inf)
+
+        # set target cells to zero
+        targets = zip(*np.where(self.grid == CellState.TARGET))
+        self.utilities[targets] = 0
+
+        for target in range(targets):
+            self.set_dijkstra_for_one_target(target)
+
+        print(self.utilities)
+
+    def set_dijkstra_for_one_target(self, target: tuple[int, int]) -> None:
+        """
+        Set utilities of each cell with Dijkstra's algorithm to find minimal distance to a single target
+
+        Adapted from: https://www.geeksforgeeks.org/dijkstras-shortest-path-algorithm-greedy-algo-7/ (24/10/2021)
+        """
+        # initialize a distance array (computed distances to the target) and an array of visited cells
+        dist = np.full_like(self.utilities, np.inf)
+        dist[target] = 0
+        visited = np.full_like(self.utilities, False)
+
+        for _ in range(self.utilities):
+            u = self.find_minimal_distance_cell(dist, visited)
+            visited[u] = True
+
+        # TODO find neighbors
+        neighbors = []
+
+        for v in range(neighbors):
+            if not visited[v] and dist[v] > dist[u] + self.compute_distance(u, v):
+                dist[v] = dist[u] + self.compute_distance(u, v)
+
+                # update a cell's utility if the cell is closer to this target than a previous target
+                if self.utilities[v] > dist[v]:
+                    self.utilities[v] = dist[v]
+
+    def _find_minimal_distance_cell(self, dist, visited) -> tuple[int, int]:
+        """
+        Determine cell with minimal distance to the target that will be visited next
+        :param dist: array of distances between cells and the target
+        :param visited: array that indicates whether a cell has been visited or not
+        :return: cell with minimal distance to the target
+        """
+        min_dist = np.inf
+
+        for u in range(self.utilities):
+            if dist[u] < min_dist and not visited[u]:
+                min_dist = dist[u]
+                min_dist_cell = u
+        return min_dist_cell
+
+    def _compute_distance(self, u: tuple[int, int], v: tuple[int, int]) -> float:
+        """
+        Compute the euclidean distance between 2 cells
+        :param u: first cell
+        :param v: second cell
+        :return: euclidean distance between 2 cells
+        """
+        return np.sqrt((u[0] - v[0]) ** 2 + (u[1] - v[1]) ** 2)
+
