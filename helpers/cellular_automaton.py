@@ -219,22 +219,20 @@ class CellularAutomaton():
         if self.grid[pos_idx] != CellState.EMPTY:
             raise ValueError(f'Trying to write value into grid position {pos_idx}, but not empty.')
 
-    def set_utilities(self, grid_size: tuple[int, int]) -> None:
+    def set_utilities(self) -> None:
         """
         Set the utilities of each cell according to their respective distance to the closest target
 
         :param grid_size: Defines the size of the utility array
         """
         # dev: self.utilities can be initialized with the following line in the init method
-        self.utilities = np.full(grid_size, np.inf)
+        self.utilities = np.full_like(self.utilities, np.inf)
 
         # set target cells to zero
         targets = zip(*np.where(self.grid == CellState.TARGET))
-        self.utilities[targets] = 0
-        # TODO: delete debugging
-        print(targets)
-        """
+        # self.utilities[targets] = 0
         
+        """
         for target in targets:
             self.set_dijkstra_for_one_target(target)
         """
