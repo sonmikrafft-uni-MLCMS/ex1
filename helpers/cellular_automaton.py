@@ -219,7 +219,7 @@ class CellularAutomaton():
         if self.grid[pos_idx] != CellState.EMPTY:
             raise ValueError(f'Trying to write value into grid position {pos_idx}, but not empty.')
 
-    def set_utilities(self) -> None:
+    def set_utilities(self, obstacle_avoidance: bool) -> None:
         """
         Set the utilities of each cell according to their respective distance to the closest target
         """
@@ -229,12 +229,15 @@ class CellularAutomaton():
         targets = [tuple(a) for a in np.argwhere(self.grid == CellState.TARGET)]
 
         for target in targets:
-            self.set_dijkstra_for_one_target(target)
+            self.set_dijkstra_for_one_target(target, obstacle_avoidance)
+
+        # very basic obstacle avoidance
+        self.utilities[self.grid == CellState.OBSTACLE] = np.inf
 
         np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
         print(self.utilities)
 
-    def set_dijkstra_for_one_target(self, target: tuple[int, int]) -> None:
+    def set_dijkstra_for_one_target(self, target: tuple[int, int], obstacle_avoidance: bool) -> None:
         """
         Set utilities of each cell with Dijkstra's algorithm to find minimal distance to a single target
 
@@ -253,6 +256,8 @@ class CellularAutomaton():
             neighbors = self._get_surrounding_idx(u)
 
             for v in neighbors:
+                if obstacle_avoidance and self.grid[v] == CellState.OBSTACLE:
+                    continue
                 if not visited[v] and dist[v] > dist[u] + _compute_distance(u, v):
                     dist[v] = dist[u] + _compute_distance(u, v)
 
