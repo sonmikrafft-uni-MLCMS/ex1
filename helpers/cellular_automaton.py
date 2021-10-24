@@ -243,6 +243,7 @@ class CellularAutomaton():
         # initialize a distance array (computed distances to the target) and an array of visited cells
         dist = np.full_like(self.utilities, np.inf)
         dist[target] = 0
+        self.utilities[target] = 0
         visited = np.full_like(self.utilities, False)
 
         for _ in self.utilities.flat:
