@@ -107,9 +107,9 @@ class CellularAutomaton():
                     best_utility = self.utilities[curr_idx]
                     best_idx = curr_idx
                     for potential_next_idx in surrounding_idx:
-                        if self.grid[potential_next_idx] in [CellState.OBSTACLE, CellState.PEDESTRIAN]:
+                        if next_grid[potential_next_idx] in [CellState.OBSTACLE, CellState.PEDESTRIAN]:
                             continue
-                        if not target_absorbs and self.grid[potential_next_idx] == CellState.TARGET:
+                        if not target_absorbs and next_grid[potential_next_idx] == CellState.TARGET:
                             continue
                         if self.utilities[potential_next_idx] < best_utility:
                             best_utility = self.utilities[potential_next_idx]
