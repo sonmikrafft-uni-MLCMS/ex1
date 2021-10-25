@@ -28,6 +28,16 @@ def cell_state_to_visualized(x: Enum) -> str:
     return 'T'
 
 
+def _compute_distance(u: tuple[int, int], v: tuple[int, int]) -> float:
+    """
+    Compute the euclidean distance between 2 cells
+    :param u: first cell
+    :param v: second cell
+    :return: euclidean distance between 2 cells
+    """
+    return np.sqrt((u[0] - v[0]) ** 2 + (u[1] - v[1]) ** 2)
+
+
 class CellularAutomaton():
     def __init__(self, grid_size: tuple[int, int]) -> None:
         """
@@ -35,9 +45,9 @@ class CellularAutomaton():
 
         :param grid_size: Tuple of 2D grid dimensions
         """
-        self.grid = np.full(grid_size, CellState.EMPTY)
+        self.state_grid = np.full(grid_size, CellState.EMPTY)
         self.curr_iter = 0  # current iteration of the simulation
-        self.grid_history = {}  # type: Dict[int, np.ndarray]
+        self.state_grid_history = {}  # type: Dict[int, np.ndarray]
 
     def add(self, what: CellState, pos_idx: tuple[int, int]) -> None:
         """
@@ -49,9 +59,9 @@ class CellularAutomaton():
         :raises IndexError: If given index is invalid, either because index is negative or out of bounds
         """
         self._check_empty(pos_idx)
-        self.grid[(pos_idx)] = what
+        self.state_grid[(pos_idx)] = what
 
-    def visualize_grid(self, iteration: Optional[int] = None) -> None:
+    def visualize_state_grid(self, iteration: Optional[int] = None) -> None:
         """
         Visualizes the state grid by printing it on the console nicely.
 
@@ -61,53 +71,61 @@ class CellularAutomaton():
         :param iteration: Optionally specify to visualize the grid at that specific tieration in the past
         :raises ValueError: If specified iteration number is not within [0, current iteration]
         """
-        grid_to_visualize = self.grid.copy()
+        grid_to_visualize = self.state_grid.copy()
 
         if iteration is not None:
             self._check_iteration_number(iteration)
-            grid_to_visualize = self.grid_history[iteration].copy()
+            grid_to_visualize = self.state_grid_history[iteration].copy()
 
         vfunc = np.vectorize(cell_state_to_visualized)
         visualized_grid = vfunc(grid_to_visualize)
         output_str = '[' + ']\n['.join(['  '.join([str(cell) for cell in row]) for row in visualized_grid]) + ']'
         print(output_str)
 
-    def simulate_next_n(self, n: int, target_absorbs: bool = True) -> None:
+    def simulate_next_n(self, n: int, smart_obstacle_avoidance: bool = True, target_absorbs: bool = True) -> None:
         """
         Simulate next n steps by calling `simulate_next` n-times.
 
         :param n: Number of iterations to simulate
-        :param target_absorbs: Flag that tells if a pedestrian is absorbed when going onto the target or not.
+        :param smart_obstacle_avoidance: Optional flag wether intelligent obstacle avoidance is active
+            Defaults to true
+        :param target_absorbs: Optional flag that tells if a pedestrian is absorbed when going onto the target or not
+            Defaults to true
         """
         for _ in range(n):
-            self.simulate_next(target_absorbs=target_absorbs)
+            self.simulate_next(smart_obstacle_avoidance=smart_obstacle_avoidance, target_absorbs=target_absorbs)
 
-    def simulate_next(self, target_absorbs: bool = True) -> None:
+    def simulate_next(self, smart_obstacle_avoidance: bool = True, target_absorbs: bool = True) -> None:
         """
         Propogate states of pedestrian one forward and add new grid state into the history.
 
         Pedestrians move to the cell with the best utility value in their direct surrounding.
         Only cells that are no obstacles are considered.
 
-        :param target_absorbs: Flag that tells if a pedestrian is absorbed when going onto the target or not.
+        @TODO make pedestrian check implicit by adding a pedestrian based utiliy on top of positional utility grid
+        :param smart_obstacle_avoidance: Optional flag wether intelligent obstacle avoidance is active
+            Defaults to true
+        :param target_absorbs: Optional flag that tells if a pedestrian is absorbed when going onto the target or not
+            Defaults to true
         """
         self._save_to_grid_history()
-        utility_grid = self._get_distance_based_utility_grid()
-        next_grid = self.grid.copy()
+        state_grid = self.state_grid
+        utility_grid = self._get_dijkstra_utility_grid(state_grid, smart_obstacle_avoidance)
+        next_grid = self.state_grid.copy()
 
         # Iterate over current grid
-        for row in range(self.grid.shape[0]):
-            for col in range(self.grid.shape[1]):
+        for row in range(self.state_grid.shape[0]):
+            for col in range(self.state_grid.shape[1]):
                 curr_idx = (row, col)
                 # check if pedestrian
-                if self.grid[curr_idx] == CellState.PEDESTRIAN:
+                if self.state_grid[curr_idx] == CellState.PEDESTRIAN:
                     surrounding_idx = self._get_surrounding_idx(curr_idx)
 
                     # look around and keep track of cell with best utility
                     best_utility = utility_grid[curr_idx]
                     best_idx = curr_idx
                     for potential_next_idx in surrounding_idx:
-                        if next_grid[potential_next_idx] in [CellState.OBSTACLE, CellState.PEDESTRIAN]:
+                        if next_grid[potential_next_idx] in [CellState.PEDESTRIAN]:
                             continue
                         if not target_absorbs and next_grid[potential_next_idx] == CellState.TARGET:
                             continue
@@ -121,10 +139,10 @@ class CellularAutomaton():
 
                     # otherwise propagate forward
                     next_grid[row, col] = CellState.EMPTY
-                    if not self.grid[best_idx] == CellState.TARGET:
+                    if not self.state_grid[best_idx] == CellState.TARGET:
                         next_grid[best_idx] = CellState.PEDESTRIAN
 
-        self.grid = next_grid
+        self.state_grid = next_grid
         self.curr_iter += 1
         self._save_to_grid_history()
 
@@ -139,18 +157,37 @@ class CellularAutomaton():
         :raises ValueError: If specified iteration number is not within [0, current iteration]
         """
         self._check_iteration_number(i_reset)
-        self.grid = self.grid_history[i_reset].copy()
+        self.state_grid = self.state_grid_history[i_reset].copy()
 
         for i in range(i_reset + 1, self.curr_iter + 1):
-            del self.grid_history[i]
+            del self.state_grid_history[i]
 
         self.curr_iter = i_reset
+
+    def print_utilities(self, smart_obstacle_avoidance: bool = True, iteration: Optional[int] = None) -> None:
+        """
+        Calculates and prints the utility grid based on the state grid.
+
+        :param smart_obstacle_avoidance: Optional flag wether intelligent obstacle avoidance is active
+            Defaults to true
+        :param iteration: Optionally specify the iteration number where you want to get the utility grid for
+        """
+        state_grid = self.state_grid.copy()
+        if iteration is not None:
+            self._check_iteration_number(iteration)
+            state_grid = self.state_grid_history[iteration].copy()
+
+        utility_grid = self._get_dijkstra_utility_grid(state_grid, smart_obstacle_avoidance)
+
+        np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
+        print(utility_grid)
 
     def _get_distance_based_utility_grid(self) -> np.ndarray:
         """
         Get utility grid filled by euclidean distance to closest target.
 
-        Distance is calulated in an naive way ignoreing obstacles.
+        REMARK: This is the old, naive calculation. See _get_dijkstra_utility_grid for a proper implementation
+        Distance is calulated in an naive way ignoring obstacles..
 
         - target cells are filled with 0
         - obstacle cells are filled with infinity
@@ -158,16 +195,16 @@ class CellularAutomaton():
 
         :return: Numpy array of same shape as state grid filled with utility values
         """
-        utility_grid = np.zeros(self.grid.shape)
+        utility_grid = np.zeros(self.state_grid.shape)
 
         # get idx of all targets
-        idx_targets = [tuple(a) for a in np.argwhere(self.grid == CellState.TARGET)]
+        idx_targets = [tuple(a) for a in np.argwhere(self.state_grid == CellState.TARGET)]
         if len(idx_targets) == 0:
             raise ValueError('No target in grid.')
 
         # get idx of all non target and non obstacle cells
         idx_movables = [tuple(a) for a in np.argwhere(
-            (self.grid != CellState.TARGET) & (self.grid != CellState.OBSTACLE))]
+            (self.state_grid != CellState.TARGET) & (self.state_grid != CellState.OBSTACLE))]
         # iterate over movable cells
         for idx_movable in idx_movables:
             smallest_distance = None
@@ -181,7 +218,7 @@ class CellularAutomaton():
             utility_grid[idx_movable] = smallest_distance
 
         # treat obstacles
-        utility_grid[self.grid == CellState.OBSTACLE] = np.infty
+        utility_grid[self.state_grid == CellState.OBSTACLE] = np.infty
 
         return utility_grid
 
@@ -209,7 +246,7 @@ class CellularAutomaton():
         """
         Add copy of current grid property as an entry to the grid history dict, where the key is the curr_iter.
         """
-        self.grid_history[self.curr_iter] = self.grid.copy()
+        self.state_grid_history[self.curr_iter] = self.state_grid.copy()
 
     def _check_iteration_number(self, i_to_check: int) -> None:
         """
@@ -225,14 +262,14 @@ class CellularAutomaton():
         Checks if we can access the grid with the given indices.
 
         :param pos_idx: Index that we want to access, specified as 2D tuple
-        :param surpress_error: Flag if to surpress raising an IndexError and return False instead
+        :param surpess_error: Flag if to surpress raising an IndexError and return False instead
         :raises IndexError: If given index is invalid, either because index is negative or out of bounds
         :return: True if valid, False invalid and surpress_error == True
         """
-        if not all((idx < grid) and (idx >= 0) for (idx, grid) in zip(pos_idx, self.grid.shape)):
+        if not all((idx < grid) and (idx >= 0) for (idx, grid) in zip(pos_idx, self.state_grid.shape)):
             if not surpess_error:
                 raise IndexError(
-                    f'Trying to access grid position {pos_idx} but grid is only of size {self.grid.shape}.')
+                    f'Trying to access grid position {pos_idx} but grid is only of size {self.state_grid.shape}.')
             else:
                 return False
         return True
@@ -245,8 +282,82 @@ class CellularAutomaton():
         :raises ValueError: If cell is not empty
         """
         self._check_valid_idx(pos_idx)
-        if self.grid[pos_idx] != CellState.EMPTY:
+        if self.state_grid[pos_idx] != CellState.EMPTY:
             raise ValueError(f'Trying to write value into grid position {pos_idx}, but not empty.')
+
+    def _get_dijkstra_utility_grid(self, state_grid: np.ndarray, smart_obstacle_avoidance: bool) -> np.ndarray:
+        """
+        Set the utilities of each cell according to their respective distance to the closest target, based on Dijkstra's
+        algorithm.
+
+        :param state_grid: 2D array of state grid with CellStates
+        :smart_obstacle_avoidance: Flag wether intelligent obstacle avoidance is active
+        """
+        utitliy_grid = np.full(state_grid.shape, np.inf)
+
+        targets = [tuple(a) for a in np.argwhere(state_grid == CellState.TARGET)]
+
+        for target in targets:
+            utitliy_grid = self._set_dijkstra_for_one_target(target, state_grid, utitliy_grid, smart_obstacle_avoidance)
+
+        # very basic obstacle avoidance
+        utitliy_grid[state_grid == CellState.OBSTACLE] = np.inf
+        return utitliy_grid
+
+    def _set_dijkstra_for_one_target(self, target: tuple[int, int], state_grid: np.ndarray, utitliy_grid: np.ndarray,
+                                     smart_obstacle_avoidance: bool) -> np.ndarray:
+        """
+        Set utilities of each cell with Dijkstra's algorithm to find minimal distance to a single target
+
+        Adapted from: https://www.geeksforgeeks.org/dijkstras-shortest-path-algorithm-greedy-algo-7/ (24/10/2021)
+
+        :param taget: Tuple of ids of target cell
+        :param state_grid: numpy array of state grid filled with CellStates
+        :param utility_grid: current utility grade (based on other targets)
+        :param smart_obstacle_avoidance: Flag wether intelligent obstacle avoidance is active
+        """
+        # initialize a distance array (computed distances to the target) and an array of visited cells
+        dist = np.full_like(utitliy_grid, np.inf)
+        dist[target] = 0
+        utitliy_grid[target] = 0
+        visited = np.full_like(utitliy_grid, False)
+
+        for _ in utitliy_grid.flat:
+            u = self._find_minimal_distance_cell(dist, visited, utitliy_grid)
+            visited[u] = True
+
+            neighbors = self._get_surrounding_idx(u)
+
+            for v in neighbors:
+                if smart_obstacle_avoidance and state_grid[v] == CellState.OBSTACLE:
+                    continue
+                if not visited[v] and dist[v] > dist[u] + _compute_distance(u, v):
+                    dist[v] = dist[u] + _compute_distance(u, v)
+
+                    # update a cell's utility if the cell is closer to this target than a previous target
+                    if utitliy_grid[v] > dist[v]:
+                        utitliy_grid[v] = dist[v]
+
+        return utitliy_grid
+
+    def _find_minimal_distance_cell(self, dist, visited, utitliy_grid) -> tuple[int, int]:
+        """
+        Determine cell with minimal distance to the target that will be visited next.
+
+        :param dist: array of distances between cells and the target
+        :param visited: array that indicates whether a cell has been visited or not
+        :return: cell with minimal distance to the target
+        """
+        min_dist = np.inf
+        min_dist_cell = (0, 0)
+
+        for fst, _ in enumerate(utitliy_grid):
+            for snd, _ in enumerate(utitliy_grid[fst]):
+                u = (fst, snd)
+                if dist[u] < min_dist and not visited[u]:
+                    min_dist = dist[u]
+                    min_dist_cell = u
+        return min_dist_cell
 
 
 def fill_from_scenario_file(scenario_file: str) -> CellularAutomaton:
