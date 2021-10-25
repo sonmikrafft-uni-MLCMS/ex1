@@ -48,7 +48,6 @@ class CellularAutomaton():
         self.grid = np.full(grid_size, CellState.EMPTY)
         self.curr_iter = 0  # current iteration of the simulation
         self.grid_history = {}  # type: Dict[int, np.ndarray]
-        self.utilities = np.zeros(grid_size)
 
     def add(self, what: CellState, pos_idx: tuple[int, int]) -> None:
         """
@@ -103,6 +102,7 @@ class CellularAutomaton():
         :param target_absorbs: Flag that tells if a pedestrian is absorbed when going onto the target or not.
         """
         self._save_to_grid_history()
+        utility_grid = self._get_distance_based_utility_grid()
         next_grid = self.grid.copy()
 
         # Iterate over current grid
@@ -114,15 +114,15 @@ class CellularAutomaton():
                     surrounding_idx = self._get_surrounding_idx(curr_idx)
 
                     # look around and keep track of cell with best utility
-                    best_utility = self.utilities[curr_idx]
+                    best_utility = utility_grid[curr_idx]
                     best_idx = curr_idx
                     for potential_next_idx in surrounding_idx:
                         if next_grid[potential_next_idx] in [CellState.OBSTACLE, CellState.PEDESTRIAN]:
                             continue
                         if not target_absorbs and next_grid[potential_next_idx] == CellState.TARGET:
                             continue
-                        if self.utilities[potential_next_idx] < best_utility:
-                            best_utility = self.utilities[potential_next_idx]
+                        if utility_grid[potential_next_idx] < best_utility:
+                            best_utility = utility_grid[potential_next_idx]
                             best_idx = potential_next_idx
 
                     # nothing to do if already on best cell
@@ -155,6 +155,45 @@ class CellularAutomaton():
             del self.grid_history[i]
 
         self.curr_iter = i_reset
+
+    def _get_distance_based_utility_grid(self) -> np.ndarray:
+        """
+        Get utility grid filled by euclidean distance to closest target.
+
+        Distance is calulated in an naive way ignoreing obstacles.
+
+        - target cells are filled with 0
+        - obstacle cells are filled with infinity
+        - other cells are filled with euclidean distance to closest target
+
+        :return: Numpy array of same shape as state grid filled with utility values
+        """
+        utility_grid = np.zeros(self.grid.shape)
+
+        # get idx of all targets
+        idx_targets = [tuple(a) for a in np.argwhere(self.grid == CellState.TARGET)]
+        if len(idx_targets) == 0:
+            raise ValueError('No target in grid.')
+
+        # get idx of all non target and non obstacle cells
+        idx_movables = [tuple(a) for a in np.argwhere(
+            (self.grid != CellState.TARGET) & (self.grid != CellState.OBSTACLE))]
+        # iterate over movable cells
+        for idx_movable in idx_movables:
+            smallest_distance = None
+
+            # iterate over target cells
+            for idx_target in idx_targets:
+                eucl_distance = np.linalg.norm(np.array(idx_movable) - np.array(idx_target))
+                if smallest_distance is None or eucl_distance < smallest_distance:
+                    smallest_distance = eucl_distance
+
+            utility_grid[idx_movable] = smallest_distance
+
+        # treat obstacles
+        utility_grid[self.grid == CellState.OBSTACLE] = np.infty
+
+        return utility_grid
 
     def _get_surrounding_idx(self, pos_idx: tuple[int, int]) -> set[tuple[int, int]]:
         """
