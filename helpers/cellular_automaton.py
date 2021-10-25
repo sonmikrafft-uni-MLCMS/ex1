@@ -234,6 +234,7 @@ class CellularAutomaton():
         # very basic obstacle avoidance
         self.utilities[self.grid == CellState.OBSTACLE] = np.inf
 
+    def print_utilities(self) -> None:
         np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
         print(self.utilities)
 
