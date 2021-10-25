@@ -8,10 +8,10 @@ class GUI:
     def __init__(self, root, scenario_file: str):
         self.my_cellular_automaton = fill_from_scenario_file(scenario_file)
 
-        n_rows, n_cols = self.my_cellular_automaton.grid.shape
-        n_pedestrians = (self.my_cellular_automaton.grid == CellState.PEDESTRIAN).sum()
-        n_obstacles = (self.my_cellular_automaton.grid == CellState.OBSTACLE).sum()
-        n_targets = (self.my_cellular_automaton.grid == CellState.TARGET).sum()
+        n_rows, n_cols = self.my_cellular_automaton.state_grid.shape
+        n_pedestrians = (self.my_cellular_automaton.state_grid == CellState.PEDESTRIAN).sum()
+        n_obstacles = (self.my_cellular_automaton.state_grid == CellState.OBSTACLE).sum()
+        n_targets = (self.my_cellular_automaton.state_grid == CellState.TARGET).sum()
 
         self.setup_container(root)
         self.setup_canvas()
@@ -19,14 +19,14 @@ class GUI:
         self.add_static_text_descriptors(scenario_file, n_rows, n_cols, n_pedestrians, n_obstacles, n_targets)
         self.add_dynamic_elements()
 
-        # visualize start state by iterating over our grid
+        # visualize start state by iterating over our state_grid
         self.visualize_state()
 
     def visualize_state(self):
-        rows, cols = self.my_cellular_automaton.grid.shape
+        rows, cols = self.my_cellular_automaton.state_grid.shape
         for ix in range(0, rows):
             for iy in range(0, cols):
-                cell = self.my_cellular_automaton.grid[ix, iy]
+                cell = self.my_cellular_automaton.state_grid[ix, iy]
                 self.add_item_to_grid(ix, iy, cell)
 
     def add_item_to_grid(self, row, col, cell_state):
