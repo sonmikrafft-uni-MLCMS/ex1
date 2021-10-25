@@ -286,7 +286,11 @@ class CellularAutomaton():
 
     def _get_dijkstra_utility_grid(self, state_grid: np.ndarray, smart_obstacle_avoidance: bool) -> np.ndarray:
         """
-        Set the utilities of each cell according to their respective distance to the closest target
+        Set the utilities of each cell according to their respective distance to the closest target, based on Dijkstra's
+        algorithm.
+
+        :param state_grid: 2D array of state grid with CellStates
+        :smart_obstacle_avoidance: Flag wether intelligent obstacle avoidance is activate.
         """
         utitliy_grid = np.full(state_grid.shape, np.inf)
 
