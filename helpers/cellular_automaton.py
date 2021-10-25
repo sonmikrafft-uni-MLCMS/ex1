@@ -110,7 +110,7 @@ class CellularAutomaton():
         """
         self._save_to_grid_history()
         state_grid = self.state_grid
-        utility_grid = self._get_djikstra_utility_grid(state_grid, smart_obstacle_avoidance)
+        utility_grid = self._get_dijkstra_utility_grid(state_grid, smart_obstacle_avoidance)
         next_grid = self.state_grid.copy()
 
         # Iterate over current grid
@@ -177,7 +177,7 @@ class CellularAutomaton():
             self._check_iteration_number(iteration)
             state_grid = self.state_grid_history[iteration].copy()
 
-        utility_grid = self._get_djikstra_utility_grid(state_grid, smart_obstacle_avoidance)
+        utility_grid = self._get_dijkstra_utility_grid(state_grid, smart_obstacle_avoidance)
 
         np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
         print(utility_grid)
@@ -284,7 +284,7 @@ class CellularAutomaton():
         if self.state_grid[pos_idx] != CellState.EMPTY:
             raise ValueError(f'Trying to write value into grid position {pos_idx}, but not empty.')
 
-    def _get_djikstra_utility_grid(self, state_grid: np.ndarray, smart_obstacle_avoidance: bool) -> np.ndarray:
+    def _get_dijkstra_utility_grid(self, state_grid: np.ndarray, smart_obstacle_avoidance: bool) -> np.ndarray:
         """
         Set the utilities of each cell according to their respective distance to the closest target
         """
