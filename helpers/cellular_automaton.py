@@ -87,7 +87,7 @@ class CellularAutomaton():
         Simulate next n steps by calling `simulate_next` n-times.
 
         :param n: Number of iterations to simulate
-        :param smart_obstacle_avoidance: Optional flag wether to have intelligent obstacle avoidance is activated.
+        :param smart_obstacle_avoidance: Optional flag wether intelligent obstacle avoidance is active
             Defaults to true
         :param target_absorbs: Optional flag that tells if a pedestrian is absorbed when going onto the target or not
             Defaults to true
@@ -103,7 +103,7 @@ class CellularAutomaton():
         Only cells that are no obstacles are considered.
 
         @TODO make pedestrian check implicit by adding a pedestrian based utiliy on top of positional utility grid
-        :param smart_obstacle_avoidance: Optional flag wether to have intelligent obstacle avoidance is activated.
+        :param smart_obstacle_avoidance: Optional flag wether intelligent obstacle avoidance is active
             Defaults to true
         :param target_absorbs: Optional flag that tells if a pedestrian is absorbed when going onto the target or not
             Defaults to true
@@ -168,7 +168,7 @@ class CellularAutomaton():
         """
         Calculates and prints the utility grid based on the state grid.
 
-        :param smart_obstacle_avoidance: Optional flag wether to have intelligent obstacle avoidance is activate.
+        :param smart_obstacle_avoidance: Optional flag wether intelligent obstacle avoidance is active
             Defaults to true
         :param iteration: Optionally specify the iteration number where you want to get the utility grid for
         """
@@ -290,7 +290,7 @@ class CellularAutomaton():
         algorithm.
 
         :param state_grid: 2D array of state grid with CellStates
-        :smart_obstacle_avoidance: Flag wether intelligent obstacle avoidance is activate.
+        :smart_obstacle_avoidance: Flag wether intelligent obstacle avoidance is active
         """
         utitliy_grid = np.full(state_grid.shape, np.inf)
 
@@ -313,7 +313,7 @@ class CellularAutomaton():
         :param taget: Tuple of ids of target cell
         :param state_grid: numpy array of state grid filled with CellStates
         :param utility_grid: current utility grade (based on other targets)
-        :param smart_obstacle_avoidance: Flag wether to have intelligent obstacle avoidance is activated
+        :param smart_obstacle_avoidance: Flag wether intelligent obstacle avoidance is active
         """
         # initialize a distance array (computed distances to the target) and an array of visited cells
         dist = np.full_like(utitliy_grid, np.inf)
