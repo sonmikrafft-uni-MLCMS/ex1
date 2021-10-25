@@ -45,9 +45,9 @@ class CellularAutomaton():
 
         :param grid_size: Tuple of 2D grid dimensions
         """
-        self.grid = np.full(grid_size, CellState.EMPTY)
+        self.state_grid = np.full(grid_size, CellState.EMPTY)
         self.curr_iter = 0  # current iteration of the simulation
-        self.grid_history = {}  # type: Dict[int, np.ndarray]
+        self.state_grid_history = {}  # type: Dict[int, np.ndarray]
 
     def add(self, what: CellState, pos_idx: tuple[int, int]) -> None:
         """
@@ -59,9 +59,9 @@ class CellularAutomaton():
         :raises IndexError: If given index is invalid, either because index is negative or out of bounds
         """
         self._check_empty(pos_idx)
-        self.grid[(pos_idx)] = what
+        self.state_grid[(pos_idx)] = what
 
-    def visualize_grid(self, iteration: Optional[int] = None) -> None:
+    def visualize_state_grid(self, iteration: Optional[int] = None) -> None:
         """
         Visualizes the state grid by printing it on the console nicely.
 
@@ -71,11 +71,11 @@ class CellularAutomaton():
         :param iteration: Optionally specify to visualize the grid at that specific tieration in the past
         :raises ValueError: If specified iteration number is not within [0, current iteration]
         """
-        grid_to_visualize = self.grid.copy()
+        grid_to_visualize = self.state_grid.copy()
 
         if iteration is not None:
             self._check_iteration_number(iteration)
-            grid_to_visualize = self.grid_history[iteration].copy()
+            grid_to_visualize = self.state_grid_history[iteration].copy()
 
         vfunc = np.vectorize(cell_state_to_visualized)
         visualized_grid = vfunc(grid_to_visualize)
@@ -109,16 +109,16 @@ class CellularAutomaton():
             Defaults to true
         """
         self._save_to_grid_history()
-        state_grid = self.grid
+        state_grid = self.state_grid
         utility_grid = self._get_djikstra_utility_grid(state_grid, smart_obstacle_avoidance)
-        next_grid = self.grid.copy()
+        next_grid = self.state_grid.copy()
 
         # Iterate over current grid
-        for row in range(self.grid.shape[0]):
-            for col in range(self.grid.shape[1]):
+        for row in range(self.state_grid.shape[0]):
+            for col in range(self.state_grid.shape[1]):
                 curr_idx = (row, col)
                 # check if pedestrian
-                if self.grid[curr_idx] == CellState.PEDESTRIAN:
+                if self.state_grid[curr_idx] == CellState.PEDESTRIAN:
                     surrounding_idx = self._get_surrounding_idx(curr_idx)
 
                     # look around and keep track of cell with best utility
@@ -139,10 +139,10 @@ class CellularAutomaton():
 
                     # otherwise propagate forward
                     next_grid[row, col] = CellState.EMPTY
-                    if not self.grid[best_idx] == CellState.TARGET:
+                    if not self.state_grid[best_idx] == CellState.TARGET:
                         next_grid[best_idx] = CellState.PEDESTRIAN
 
-        self.grid = next_grid
+        self.state_grid = next_grid
         self.curr_iter += 1
         self._save_to_grid_history()
 
@@ -157,10 +157,10 @@ class CellularAutomaton():
         :raises ValueError: If specified iteration number is not within [0, current iteration]
         """
         self._check_iteration_number(i_reset)
-        self.grid = self.grid_history[i_reset].copy()
+        self.state_grid = self.state_grid_history[i_reset].copy()
 
         for i in range(i_reset + 1, self.curr_iter + 1):
-            del self.grid_history[i]
+            del self.state_grid_history[i]
 
         self.curr_iter = i_reset
 
@@ -172,10 +172,10 @@ class CellularAutomaton():
             Defaults to true
         :param iteration: Optionally specify the iteration number where you want to get the utility grid for
         """
-        state_grid = self.grid.copy()
+        state_grid = self.state_grid.copy()
         if iteration is not None:
             self._check_iteration_number(iteration)
-            state_grid = self.grid_history[iteration].copy()
+            state_grid = self.state_grid_history[iteration].copy()
 
         utility_grid = self._get_djikstra_utility_grid(state_grid, smart_obstacle_avoidance)
 
@@ -194,16 +194,16 @@ class CellularAutomaton():
 
         :return: Numpy array of same shape as state grid filled with utility values
         """
-        utility_grid = np.zeros(self.grid.shape)
+        utility_grid = np.zeros(self.state_grid.shape)
 
         # get idx of all targets
-        idx_targets = [tuple(a) for a in np.argwhere(self.grid == CellState.TARGET)]
+        idx_targets = [tuple(a) for a in np.argwhere(self.state_grid == CellState.TARGET)]
         if len(idx_targets) == 0:
             raise ValueError('No target in grid.')
 
         # get idx of all non target and non obstacle cells
         idx_movables = [tuple(a) for a in np.argwhere(
-            (self.grid != CellState.TARGET) & (self.grid != CellState.OBSTACLE))]
+            (self.state_grid != CellState.TARGET) & (self.state_grid != CellState.OBSTACLE))]
         # iterate over movable cells
         for idx_movable in idx_movables:
             smallest_distance = None
@@ -217,7 +217,7 @@ class CellularAutomaton():
             utility_grid[idx_movable] = smallest_distance
 
         # treat obstacles
-        utility_grid[self.grid == CellState.OBSTACLE] = np.infty
+        utility_grid[self.state_grid == CellState.OBSTACLE] = np.infty
 
         return utility_grid
 
@@ -245,7 +245,7 @@ class CellularAutomaton():
         """
         Add copy of current grid property as an entry to the grid history dict, where the key is the curr_iter.
         """
-        self.grid_history[self.curr_iter] = self.grid.copy()
+        self.state_grid_history[self.curr_iter] = self.state_grid.copy()
 
     def _check_iteration_number(self, i_to_check: int) -> None:
         """
@@ -265,10 +265,10 @@ class CellularAutomaton():
         :raises IndexError: If given index is invalid, either because index is negative or out of bounds
         :return: True if valid, False invalid and surpress_error == True
         """
-        if not all((idx < grid) and (idx >= 0) for (idx, grid) in zip(pos_idx, self.grid.shape)):
+        if not all((idx < grid) and (idx >= 0) for (idx, grid) in zip(pos_idx, self.state_grid.shape)):
             if not surpess_error:
                 raise IndexError(
-                    f'Trying to access grid position {pos_idx} but grid is only of size {self.grid.shape}.')
+                    f'Trying to access grid position {pos_idx} but grid is only of size {self.state_grid.shape}.')
             else:
                 return False
         return True
@@ -281,7 +281,7 @@ class CellularAutomaton():
         :raises ValueError: If cell is not empty
         """
         self._check_valid_idx(pos_idx)
-        if self.grid[pos_idx] != CellState.EMPTY:
+        if self.state_grid[pos_idx] != CellState.EMPTY:
             raise ValueError(f'Trying to write value into grid position {pos_idx}, but not empty.')
 
     def _get_djikstra_utility_grid(self, state_grid: np.ndarray, smart_obstacle_avoidance: bool) -> np.ndarray:
