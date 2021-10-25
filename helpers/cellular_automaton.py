@@ -102,6 +102,7 @@ class CellularAutomaton():
         Pedestrians move to the cell with the best utility value in their direct surrounding.
         Only cells that are no obstacles are considered.
 
+        @TODO make pedestrian check implicit by adding a pedestrian based utiliy on top of positional utility grid
         :param smart_obstacle_avoidance: Optional flag wether to have intelligent obstacle avoidance is activated.
             Defaults to true
         :param target_absorbs: Optional flag that tells if a pedestrian is absorbed when going onto the target or not
@@ -124,7 +125,7 @@ class CellularAutomaton():
                     best_utility = utility_grid[curr_idx]
                     best_idx = curr_idx
                     for potential_next_idx in surrounding_idx:
-                        if next_grid[potential_next_idx] in [CellState.OBSTACLE, CellState.PEDESTRIAN]:
+                        if next_grid[potential_next_idx] in [CellState.PEDESTRIAN]:
                             continue
                         if not target_absorbs and next_grid[potential_next_idx] == CellState.TARGET:
                             continue
