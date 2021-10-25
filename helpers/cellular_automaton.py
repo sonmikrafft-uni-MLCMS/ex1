@@ -82,20 +82,50 @@ class CellularAutomaton():
         output_str = '[' + ']\n['.join(['  '.join([str(cell) for cell in row]) for row in visualized_grid]) + ']'
         print(output_str)
 
-    def simulate_next_n(self, n: int, smart_obstacle_avoidance: bool = True, target_absorbs: bool = True) -> None:
+    def simulate_until_no_change(self, smart_obstacle_avoidance: bool = True, target_absorbs: bool = True) -> None:
         """
-        Simulate next n steps by calling `simulate_next` n-times.
+        Simulate until there is no change.
 
-        :param n: Number of iterations to simulate
         :param smart_obstacle_avoidance: Optional flag wether intelligent obstacle avoidance is active
             Defaults to true
         :param target_absorbs: Optional flag that tells if a pedestrian is absorbed when going onto the target or not
             Defaults to true
         """
-        for _ in range(n):
-            self.simulate_next(smart_obstacle_avoidance=smart_obstacle_avoidance, target_absorbs=target_absorbs)
+        while(True):
+            change = self.simulate_next(smart_obstacle_avoidance=smart_obstacle_avoidance,
+                                        target_absorbs=target_absorbs)
+            if (change is not None) and (not change):
+                return
 
-    def simulate_next(self, smart_obstacle_avoidance: bool = True, target_absorbs: bool = True) -> None:
+    def simulate_next_n(self, n: int, stop_when_no_change: bool = True, smart_obstacle_avoidance: bool = True,
+                        target_absorbs: bool = True) -> Optional[bool]:
+        """
+        Simulate next n steps by calling `simulate_next` n-times.
+
+        :param n: Number of iterations to simulate
+        :param stop_when_no_change: Optional flag wether to stop when there is no change happening and to then return
+            False
+        :param smart_obstacle_avoidance: Optional flag wether intelligent obstacle avoidance is active
+            Defaults to true
+        :param target_absorbs: Optional flag that tells if a pedestrian is absorbed when going onto the target or not
+            Defaults to true
+        :return: Optionally return True / False when stop_when_no_change is set.
+            True = During n steps, there always was a change
+            False = Interrupted since there was no change at some point
+        """
+        for _ in range(n):
+            change = self.simulate_next(smart_obstacle_avoidance=smart_obstacle_avoidance,
+                                        target_absorbs=target_absorbs)
+            if not change and stop_when_no_change:
+                return False
+
+        if stop_when_no_change:
+            return True
+
+        return None
+
+    def simulate_next(self, stop_when_no_change: bool = True, smart_obstacle_avoidance: bool = True,
+                      target_absorbs: bool = True) -> Optional[bool]:
         """
         Propogate states of pedestrian one forward and add new grid state into the history.
 
@@ -103,10 +133,15 @@ class CellularAutomaton():
         Only cells that are no obstacles are considered.
 
         @TODO make pedestrian check implicit by adding a pedestrian based utiliy on top of positional utility grid
+        :param stop_when_no_change: Optional flag wether to stop when there is no change happening and to then return
+            False
         :param smart_obstacle_avoidance: Optional flag wether intelligent obstacle avoidance is active
             Defaults to true
         :param target_absorbs: Optional flag that tells if a pedestrian is absorbed when going onto the target or not
             Defaults to true
+        :return: Optionally return True / False when stop_when_no_change is set.
+            True = There was a change
+            False = There was no change
         """
         self._save_to_grid_history()
         state_grid = self.state_grid
@@ -142,9 +177,17 @@ class CellularAutomaton():
                     if not self.state_grid[best_idx] == CellState.TARGET:
                         next_grid[best_idx] = CellState.PEDESTRIAN
 
+        if stop_when_no_change and (np.array_equal(next_grid, self.state_grid)):
+            return False
+
         self.state_grid = next_grid
         self.curr_iter += 1
         self._save_to_grid_history()
+
+        if stop_when_no_change:
+            return True
+
+        return None
 
     def reset_to_iteration(self, i_reset: int) -> None:
         """
