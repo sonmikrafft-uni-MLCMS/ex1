@@ -186,7 +186,8 @@ class CellularAutomaton():
         """
         Get utility grid filled by euclidean distance to closest target.
 
-        Distance is calulated in an naive way ignoreing obstacles.
+        REMARK: This is the old, naive calculation. See _get_dijkstra_utility_grid for a proper implementation
+        Distance is calulated in an naive way ignoring obstacles..
 
         - target cells are filled with 0
         - obstacle cells are filled with infinity
