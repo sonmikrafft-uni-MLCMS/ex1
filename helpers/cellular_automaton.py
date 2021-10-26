@@ -48,18 +48,48 @@ class CellularAutomaton():
         self.state_grid = np.full(grid_size, CellState.EMPTY)
         self.curr_iter = 0  # current iteration of the simulation
         self.state_grid_history = {}  # type: Dict[int, np.ndarray]
+        self.pedestrians = []  # type: list[dict]
 
-    def add(self, what: CellState, pos_idx: tuple[int, int]) -> None:
+    def add_obstacle(self, pos_idx: tuple[int, int]) -> None:
         """
-        Fill a yet empty cell with either a pedestrian, an obstace, or a target.
+        Fill a yet empty cell with an obstacle.
 
-        :param what: One of CellState to indicate what to fill
         :param pos_idx: Tuple of 2D index on which cell to fill
         :raises ValueError: If cell is not empty
         :raises IndexError: If given index is invalid, either because index is negative or out of bounds
         """
         self._check_empty(pos_idx)
-        self.state_grid[(pos_idx)] = what
+        self.state_grid[(pos_idx)] = CellState.OBSTACLE
+
+    def add_target(self, pos_idx: tuple[int, int]) -> None:
+        """
+        Fill a yet empty cell with a target.
+
+        :param pos_idx: Tuple of 2D index on which cell to fill
+        :raises ValueError: If cell is not empty
+        :raises IndexError: If given index is invalid, either because index is negative or out of bounds
+        """
+        self._check_empty(pos_idx)
+        self.state_grid[(pos_idx)] = CellState.TARGET
+
+    def add_pedestrian(self, pos_idx: tuple[int, int], speed: float) -> None:
+        """
+        Fill a yet empty cell with either a pedestrian, an obstace, or a target.
+
+        :param pos_idx: Tuple of 2D index on which cell to fill
+        :param speed: Speed of the pedestrian in cell units per iteration
+        :raises ValueError: If cell is not empty
+        :raises IndexError: If given index is invalid, either because index is negative or out of bounds
+        """
+        self._check_empty(pos_idx)
+        self.state_grid[(pos_idx)] = CellState.PEDESTRIAN
+
+        pedestrian = {
+            'speed': speed,
+            'pos': pos_idx
+        }
+
+        self.pedestrians.append(pedestrian)
 
     def visualize_state_grid(self, iteration: Optional[int] = None) -> None:
         """
