@@ -1,3 +1,4 @@
+import ast
 from enum import Enum
 from typing import Optional, Dict
 import numpy as np
@@ -88,9 +89,10 @@ class CellularAutomaton():
         self.state_grid[(pos_idx)] = CellState.PEDESTRIAN
 
         pedestrian = {
-            'speed': speed,
-            'pos': pos_idx,
-            'travelled': 0
+            'speed': speed,  # average speed when moving
+            'pos': pos_idx,  # current position as tuple of row, col id
+            'travelled': 0,  # keeps track of total distance travelled
+            'skips': 0,  # keeps track of iterations where not able to move
         }
 
         self.pedestrians.append(pedestrian)
@@ -181,15 +183,15 @@ class CellularAutomaton():
         state_grid = self.state_grid
         utility_grid = self._get_dijkstra_utility_grid(state_grid, smart_obstacle_avoidance)
         next_grid = self.state_grid.copy()
-
         LastStep = namedtuple('LastStep', 'error state_grid pedestrians')
 
-        # Iterate over pedestrians
-        skip_pedestrian = False
+        # 1-----Iterate over pedestrians-----
+        deleted = 0  # keeping track of deleted pedestrians that reached target
+        skip_pedestrian = [False] * len(self.pedestrians)  # keep track of skips
         if len(self.pedestrians) == 0 and stop_when_no_change:
             return False
         for i in range(len(self.pedestrians)):
-            pedestrian = self.pedestrians[i]
+            pedestrian = self.pedestrians[i - deleted]
             curr_idx = pedestrian['pos']
 
             # consistency check if pedestrian also on state grid
@@ -210,10 +212,9 @@ class CellularAutomaton():
                 best_idx = curr_idx
                 for potential_next_idx in surrounding_idx:
                     if potential_next_grid[potential_next_idx] in [CellState.PEDESTRIAN]:
-                        skip_pedestrian = True
-                        break
+                        continue
                     if not target_absorbs and potential_next_grid[potential_next_idx] == CellState.TARGET:
-                        skip_pedestrian = True
+                        skip_pedestrian[i] = True
                         break
                     if utility_grid[potential_next_idx] < best_utility:
                         best_utility = utility_grid[potential_next_idx]
@@ -222,27 +223,31 @@ class CellularAutomaton():
                 # nothing to do if already on best cell
                 # we use last step as optimum = nothing to do
                 if best_idx == curr_idx:
-                    skip_pedestrian = True
+                    skip_pedestrian[i] = True
                     next_grid = last_step.state_grid.copy()
                     self.pedestrians = deepcopy(last_step.pedestrians)
+                    self.pedestrians[i]['skips'] += 1
                     break
 
                 # otherwise propagate forward
                 potential_next_grid[curr_idx] = CellState.EMPTY
+                pedestrian['pos'] = best_idx
+                pedestrian['travelled'] += np.linalg.norm(np.array(curr_idx) - np.array(best_idx))
+                error = abs(pedestrian['travelled'] / (self.curr_iter + 1 - pedestrian['skips']) - pedestrian['speed'])
+
                 # if pedestrian moves to regular cell
                 if not self.state_grid[best_idx] == CellState.TARGET:
                     potential_next_grid[best_idx] = CellState.PEDESTRIAN
-                    pedestrian['pos'] = best_idx
-                    pedestrian['travelled'] += np.linalg.norm(np.array(curr_idx) - np.array(best_idx))
-                # if pedestrian steps on target and is absorbed, we use this step as the optimum
+                # if pedestrian steps on target and is absorbed, we cannot check any further steps
+                # therefore we compare this step with previous one and choose better
                 else:
-                    del potential_next_pedestrians[i]
-                    next_grid = potential_next_grid.copy()
-                    self.pedestrians = deepcopy(potential_next_pedestrians)
-                    break
+                    if error <= last_step.error:
+                        del potential_next_pedestrians[i]
+                        next_grid = potential_next_grid.copy()
+                        self.pedestrians = deepcopy(potential_next_pedestrians)
+                        deleted += 1  # manual correction for the deletion, needed since we are iterating over it
+                        break
 
-                # keep track of errors
-                error = abs(pedestrian['travelled'] / (self.curr_iter + 1) - pedestrian['speed'])
                 # if error is again increasing, use last step as optimum
                 if error > last_step.error:
                     next_grid = last_step.state_grid.copy()
@@ -254,10 +259,7 @@ class CellularAutomaton():
                 curr_idx = best_idx
                 num_steps += 1
 
-            if skip_pedestrian:
-                break
-
-        if skip_pedestrian and stop_when_no_change and (np.array_equal(next_grid, self.state_grid)):
+        if np.all(skip_pedestrian) and stop_when_no_change and (np.array_equal(next_grid, self.state_grid)):
             return False
 
         self.state_grid = next_grid
