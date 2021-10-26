@@ -185,19 +185,18 @@ class CellularAutomaton():
         next_grid = self.state_grid.copy()
         LastStep = namedtuple('LastStep', 'error state_grid pedestrians')
 
-        # 1-----Iterate over pedestrians-----
+        # 1 >>>> Iterate over pedestrians >>>>
+
         deleted = 0  # keeping track of deleted pedestrians that reached target
         skip_pedestrian = [False] * len(self.pedestrians)  # keep track of skips
         if len(self.pedestrians) == 0 and stop_when_no_change:
             return False
         for i in range(len(self.pedestrians)):
-            pedestrian = self.pedestrians[i - deleted]
+            pedestrian = self.pedestrians[i - deleted]  # -deleted since we are manipulating the list while iterating
             curr_idx = pedestrian['pos']
-
-            # consistency check if pedestrian also on state grid
             assert self.state_grid[curr_idx] == CellState.PEDESTRIAN, 'Pedestrian list does not match cell states grid.'
 
-            # check how many steps are best
+            # 2 >>>> For one pedestrian, check how many steps it should go >>>>
             error_not_moving = abs(pedestrian['travelled'] / (self.curr_iter + 1) - pedestrian['speed'])
             last_step = LastStep(error_not_moving, next_grid.copy(), deepcopy(self.pedestrians))
 
@@ -205,20 +204,20 @@ class CellularAutomaton():
             potential_next_pedestrians = self.pedestrians.copy()
             num_steps = 1
             while(True):
-                surrounding_idx = self._get_surrounding_idx(curr_idx)
 
-                # look around and keep track of cell with best utility
+                # 3 >>>> For one step, iterate over surrounding cells, find best utility >>>>
+                surrounding_idx = self._get_surrounding_idx(curr_idx)
                 best_utility = utility_grid[curr_idx]
                 best_idx = curr_idx
                 for potential_next_idx in surrounding_idx:
                     if potential_next_grid[potential_next_idx] in [CellState.PEDESTRIAN]:
                         continue
                     if not target_absorbs and potential_next_grid[potential_next_idx] == CellState.TARGET:
-                        skip_pedestrian[i] = True
-                        break
+                        continue
                     if utility_grid[potential_next_idx] < best_utility:
                         best_utility = utility_grid[potential_next_idx]
                         best_idx = potential_next_idx
+                # 3 <<<< For one step, iterate over surrounding cells, find best utility <<<<
 
                 # nothing to do if already on best cell
                 # we use last step as optimum = nothing to do
@@ -243,9 +242,9 @@ class CellularAutomaton():
                 else:
                     if error <= last_step.error:
                         del potential_next_pedestrians[i]
+                        deleted += 1  # manual correction for the deletion, needed since we are iterating over it
                         next_grid = potential_next_grid.copy()
                         self.pedestrians = deepcopy(potential_next_pedestrians)
-                        deleted += 1  # manual correction for the deletion, needed since we are iterating over it
                         break
 
                 # if error is again increasing, use last step as optimum
@@ -253,15 +252,21 @@ class CellularAutomaton():
                     next_grid = last_step.state_grid.copy()
                     self.pedestrians = deepcopy(last_step.pedestrians)
                     break
-                # otherwise continue
+                # otherwise continue with next step
                 last_step = LastStep(error, potential_next_grid.copy(), deepcopy(potential_next_pedestrians))
                 # set for next iteration
                 curr_idx = best_idx
                 num_steps += 1
 
+            # 2 <<<< For one pedestrian, check how many steps it should go <<<<
+
+        # 1 <<<< Iterate over pedestrians <<<<
+
+        # check if no pedestrian moved => stop simulation if flag is set
         if np.all(skip_pedestrian) and stop_when_no_change and (np.array_equal(next_grid, self.state_grid)):
             return False
 
+        # end this one simulation step by assigning the current grid state back
         self.state_grid = next_grid
         self.curr_iter += 1
         self._save_to_history()
