@@ -442,8 +442,12 @@ def fill_from_scenario_file(scenario_file: str) -> CellularAutomaton:
     - 'initial_position_obstacles', tuples of form (x, y), one tuple per row, specifies obstacles positions
     - 'position_target_zone', tuples of form (x, y), one tuple per row, specifies target positions
     - 'initial_position_pedestrian', tuples of form (x, y), one tuple per row, specifies pedestrian positions
+    - 'avg_velocity_pedestrian', float value for avg. pedestrian speed in cell units per iteration
+
+    Number of pedestrian entries needs to match.
 
     :param scenario_file: Path to .csv file
+    :raises ValueError: If number of values for pedestrians do not match
     :return: CellularAutomaton object matching the scenario file configuration
     """
     df = pd.read_csv(scenario_file, delimiter=';')
@@ -452,16 +456,20 @@ def fill_from_scenario_file(scenario_file: str) -> CellularAutomaton:
     obstacle_positions = df['initial_position_obstacles']
     target_positions = df['position_target_zone']
     pedestrian_positions = df['initial_position_pedestrian']
+    pedestrian_speeds = df['avg_velocity_pedestrian']
+
+    if len(pedestrian_positions) != len(pedestrian_speeds):
+        raise ValueError('Need same amount of entries for all pedestrian values')
 
     my_cellular_automaton = CellularAutomaton(grid_size)
 
     for obstacle_position in obstacle_positions:
-        my_cellular_automaton.add(CellState.OBSTACLE, make_tuple(obstacle_position))
+        my_cellular_automaton.add_obstacle(make_tuple(obstacle_position))
 
     for target_position in target_positions:
-        my_cellular_automaton.add(CellState.TARGET, make_tuple(target_position))
+        my_cellular_automaton.add_target(make_tuple(target_position))
 
-    for pedestrian_position in pedestrian_positions:
-        my_cellular_automaton.add(CellState.PEDESTRIAN, make_tuple(pedestrian_position))
+    for pedestrian_position, speed in zip(pedestrian_positions, pedestrian_speeds):
+        my_cellular_automaton.add_pedestrian(make_tuple(pedestrian_position), float(speed))
 
     return my_cellular_automaton
