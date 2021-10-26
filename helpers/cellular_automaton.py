@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Optional, Dict
 import numpy as np
 import pandas as pd
+import os
 from ast import literal_eval as make_tuple
 
 
@@ -91,6 +92,7 @@ class CellularAutomaton():
         :param target_absorbs: Optional flag that tells if a pedestrian is absorbed when going onto the target or not
             Defaults to true
         """
+
         while(True):
             change = self.simulate_next(smart_obstacle_avoidance=smart_obstacle_avoidance,
                                         target_absorbs=target_absorbs)
