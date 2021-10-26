@@ -26,7 +26,7 @@ class GUI:
         
         #Read in new scenariofile 
         rel_scenario_file_path = os.path.basename(scenario_file)
-        self.my_cellular_automaton = fill_from_scenario_file("scenario_0.csv")
+        self.my_cellular_automaton = fill_from_scenario_file(rel_scenario_file_path)
         
         #Prepare dynamic text labels for new update values
         self.delete_dynamic_text_descriptors()
