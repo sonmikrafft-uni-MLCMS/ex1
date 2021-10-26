@@ -51,6 +51,7 @@ class CellularAutomaton():
         self.curr_iter = 0  # current iteration of the simulation
         self.state_grid_history = {}  # type: Dict[int, np.ndarray]
         self.pedestrians = []  # type: list[dict]
+        self.pedestrians_history = {}  # type: dict[int, list[dict]]
 
     def add_obstacle(self, pos_idx: tuple[int, int]) -> None:
         """
@@ -176,7 +177,7 @@ class CellularAutomaton():
             True = There was a change
             False = There was no change
         """
-        self._save_to_grid_history()
+        self._save_to_history()
         state_grid = self.state_grid
         utility_grid = self._get_dijkstra_utility_grid(state_grid, smart_obstacle_avoidance)
         next_grid = self.state_grid.copy()
@@ -187,7 +188,8 @@ class CellularAutomaton():
         skip_pedestrian = False
         if len(self.pedestrians) == 0 and stop_when_no_change:
             return False
-        for i, pedestrian in enumerate(self.pedestrians):
+        for i in range(len(self.pedestrians)):
+            pedestrian = self.pedestrians[i]
             curr_idx = pedestrian['pos']
 
             # consistency check if pedestrian also on state grid
@@ -260,7 +262,7 @@ class CellularAutomaton():
 
         self.state_grid = next_grid
         self.curr_iter += 1
-        self._save_to_grid_history()
+        self._save_to_history()
 
         if stop_when_no_change:
             return True
@@ -278,10 +280,17 @@ class CellularAutomaton():
         :raises ValueError: If specified iteration number is not within [0, current iteration]
         """
         self._check_iteration_number(i_reset)
+
+        # check nothing has been saved so far, then do nothing
+        if len(self.state_grid_history) == 0:
+            return
+
         self.state_grid = self.state_grid_history[i_reset].copy()
+        self.pedestrians = deepcopy(self.pedestrians_history[i_reset])
 
         for i in range(i_reset + 1, self.curr_iter + 1):
             del self.state_grid_history[i]
+            del self.pedestrians_history[i]
 
         self.curr_iter = i_reset
 
@@ -363,11 +372,12 @@ class CellularAutomaton():
             move, surpess_error=True)}  # type: ignore
         return surrounding_idx  # type: ignore
 
-    def _save_to_grid_history(self) -> None:
+    def _save_to_history(self) -> None:
         """
         Add copy of current grid property as an entry to the grid history dict, where the key is the curr_iter.
         """
         self.state_grid_history[self.curr_iter] = self.state_grid.copy()
+        self.pedestrians_history[self.curr_iter] = deepcopy(self.pedestrians)
 
     def _check_iteration_number(self, i_to_check: int) -> None:
         """
