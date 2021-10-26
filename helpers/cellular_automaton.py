@@ -459,10 +459,10 @@ def fill_from_scenario_file(scenario_file: str) -> CellularAutomaton:
     df = pd.read_csv(scenario_file, delimiter=';')
 
     grid_size = make_tuple(df['grid_size'][0])
-    obstacle_positions = df['initial_position_obstacles']
-    target_positions = df['position_target_zone']
-    pedestrian_positions = df['initial_position_pedestrian']
-    pedestrian_speeds = df['avg_velocity_pedestrian']
+    obstacle_positions = df['initial_position_obstacles'].dropna()
+    target_positions = df['position_target_zone'].dropna()
+    pedestrian_positions = df['initial_position_pedestrian'].dropna()
+    pedestrian_speeds = df['avg_velocity_pedestrian'].dropna()
 
     if len(pedestrian_positions) != len(pedestrian_speeds):
         raise ValueError('Need same amount of entries for all pedestrian values')
