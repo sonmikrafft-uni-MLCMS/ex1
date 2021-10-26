@@ -1,8 +1,11 @@
+import ast
 from enum import Enum
 from typing import Optional, Dict
 import numpy as np
 import pandas as pd
 from ast import literal_eval as make_tuple
+from copy import deepcopy
+from collections import namedtuple
 
 
 class CellState(Enum):
@@ -48,18 +51,51 @@ class CellularAutomaton():
         self.state_grid = np.full(grid_size, CellState.EMPTY)
         self.curr_iter = 0  # current iteration of the simulation
         self.state_grid_history = {}  # type: Dict[int, np.ndarray]
+        self.pedestrians = []  # type: list[dict]
+        self.pedestrians_history = {}  # type: dict[int, list[dict]]
 
-    def add(self, what: CellState, pos_idx: tuple[int, int]) -> None:
+    def add_obstacle(self, pos_idx: tuple[int, int]) -> None:
         """
-        Fill a yet empty cell with either a pedestrian, an obstace, or a target.
+        Fill a yet empty cell with an obstacle.
 
-        :param what: One of CellState to indicate what to fill
         :param pos_idx: Tuple of 2D index on which cell to fill
         :raises ValueError: If cell is not empty
         :raises IndexError: If given index is invalid, either because index is negative or out of bounds
         """
         self._check_empty(pos_idx)
-        self.state_grid[(pos_idx)] = what
+        self.state_grid[(pos_idx)] = CellState.OBSTACLE
+
+    def add_target(self, pos_idx: tuple[int, int]) -> None:
+        """
+        Fill a yet empty cell with a target.
+
+        :param pos_idx: Tuple of 2D index on which cell to fill
+        :raises ValueError: If cell is not empty
+        :raises IndexError: If given index is invalid, either because index is negative or out of bounds
+        """
+        self._check_empty(pos_idx)
+        self.state_grid[(pos_idx)] = CellState.TARGET
+
+    def add_pedestrian(self, pos_idx: tuple[int, int], speed: float) -> None:
+        """
+        Fill a yet empty cell with either a pedestrian, an obstace, or a target.
+
+        :param pos_idx: Tuple of 2D index on which cell to fill
+        :param speed: Speed of the pedestrian in cell units per iteration
+        :raises ValueError: If cell is not empty
+        :raises IndexError: If given index is invalid, either because index is negative or out of bounds
+        """
+        self._check_empty(pos_idx)
+        self.state_grid[(pos_idx)] = CellState.PEDESTRIAN
+
+        pedestrian = {
+            'speed': speed,  # average speed when moving
+            'pos': pos_idx,  # current position as tuple of row, col id
+            'travelled': 0,  # keeps track of total distance travelled
+            'skips': 0,  # keeps track of iterations where not able to move
+        }
+
+        self.pedestrians.append(pedestrian)
 
     def visualize_state_grid(self, iteration: Optional[int] = None) -> None:
         """
@@ -143,46 +179,98 @@ class CellularAutomaton():
             True = There was a change
             False = There was no change
         """
-        self._save_to_grid_history()
+        self._save_to_history()
         state_grid = self.state_grid
         utility_grid = self._get_dijkstra_utility_grid(state_grid, smart_obstacle_avoidance)
         next_grid = self.state_grid.copy()
+        LastStep = namedtuple('LastStep', 'error state_grid pedestrians')
 
-        # Iterate over current grid
-        for row in range(self.state_grid.shape[0]):
-            for col in range(self.state_grid.shape[1]):
-                curr_idx = (row, col)
-                # check if pedestrian
-                if self.state_grid[curr_idx] == CellState.PEDESTRIAN:
-                    surrounding_idx = self._get_surrounding_idx(curr_idx)
+        # 1 >>>> Iterate over pedestrians >>>>
 
-                    # look around and keep track of cell with best utility
-                    best_utility = utility_grid[curr_idx]
-                    best_idx = curr_idx
-                    for potential_next_idx in surrounding_idx:
-                        if next_grid[potential_next_idx] in [CellState.PEDESTRIAN]:
-                            continue
-                        if not target_absorbs and next_grid[potential_next_idx] == CellState.TARGET:
-                            continue
-                        if utility_grid[potential_next_idx] < best_utility:
-                            best_utility = utility_grid[potential_next_idx]
-                            best_idx = potential_next_idx
+        deleted = 0  # keeping track of deleted pedestrians that reached target
+        skip_pedestrian = [False] * len(self.pedestrians)  # keep track of skips
+        if len(self.pedestrians) == 0 and stop_when_no_change:
+            return False
+        for i in range(len(self.pedestrians)):
+            pedestrian = self.pedestrians[i - deleted]  # -deleted since we are manipulating the list while iterating
+            curr_idx = pedestrian['pos']
+            assert self.state_grid[curr_idx] == CellState.PEDESTRIAN, 'Pedestrian list does not match cell states grid.'
 
-                    # nothing to do if already on best cell
-                    if best_idx == curr_idx:
+            # 2 >>>> For one pedestrian, check how many steps it should go >>>>
+            error_not_moving = abs(pedestrian['travelled'] / (self.curr_iter + 1) - pedestrian['speed'])
+            last_step = LastStep(error_not_moving, next_grid.copy(), deepcopy(self.pedestrians))
+
+            potential_next_grid = next_grid.copy()
+            potential_next_pedestrians = self.pedestrians.copy()
+            num_steps = 1
+            while(True):
+
+                # 3 >>>> For one step, iterate over surrounding cells, find best utility >>>>
+                surrounding_idx = self._get_surrounding_idx(curr_idx)
+                best_utility = utility_grid[curr_idx]
+                best_idx = curr_idx
+                for potential_next_idx in surrounding_idx:
+                    if potential_next_grid[potential_next_idx] in [CellState.PEDESTRIAN]:
                         continue
+                    if not target_absorbs and potential_next_grid[potential_next_idx] == CellState.TARGET:
+                        continue
+                    if utility_grid[potential_next_idx] < best_utility:
+                        best_utility = utility_grid[potential_next_idx]
+                        best_idx = potential_next_idx
+                # 3 <<<< For one step, iterate over surrounding cells, find best utility <<<<
 
-                    # otherwise propagate forward
-                    next_grid[row, col] = CellState.EMPTY
-                    if not self.state_grid[best_idx] == CellState.TARGET:
-                        next_grid[best_idx] = CellState.PEDESTRIAN
+                # nothing to do if already on best cell
+                # we use last step as optimum = nothing to do
+                if best_idx == curr_idx:
+                    skip_pedestrian[i] = True
+                    next_grid = last_step.state_grid.copy()
+                    self.pedestrians = deepcopy(last_step.pedestrians)
+                    if num_steps == 1:
+                        self.pedestrians[i]['skips'] += 1  # only when not moving
+                    break
 
-        if stop_when_no_change and (np.array_equal(next_grid, self.state_grid)):
+                # otherwise propagate forward
+                potential_next_grid[curr_idx] = CellState.EMPTY
+                pedestrian['pos'] = best_idx
+                pedestrian['travelled'] += np.linalg.norm(np.array(curr_idx) - np.array(best_idx))
+                error = abs(pedestrian['travelled'] / (self.curr_iter + 1 - pedestrian['skips']) - pedestrian['speed'])
+
+                # if pedestrian moves to regular cell
+                if not self.state_grid[best_idx] == CellState.TARGET:
+                    potential_next_grid[best_idx] = CellState.PEDESTRIAN
+                # if pedestrian steps on target and is absorbed, we cannot check any further steps
+                # therefore we compare this step with previous one and choose better
+                else:
+                    if error <= last_step.error:
+                        del potential_next_pedestrians[i]
+                        deleted += 1  # manual correction for the deletion, needed since we are iterating over it
+                        next_grid = potential_next_grid.copy()
+                        self.pedestrians = deepcopy(potential_next_pedestrians)
+                        break
+
+                # if error is again increasing, use last step as optimum
+                if error > last_step.error:
+                    next_grid = last_step.state_grid.copy()
+                    self.pedestrians = deepcopy(last_step.pedestrians)
+                    break
+                # otherwise continue with next step
+                last_step = LastStep(error, potential_next_grid.copy(), deepcopy(potential_next_pedestrians))
+                # set for next iteration
+                curr_idx = best_idx
+                num_steps += 1
+
+            # 2 <<<< For one pedestrian, check how many steps it should go <<<<
+
+        # 1 <<<< Iterate over pedestrians <<<<
+
+        # check if no pedestrian moved => stop simulation if flag is set
+        if np.all(skip_pedestrian) and stop_when_no_change and (np.array_equal(next_grid, self.state_grid)):
             return False
 
+        # end this one simulation step by assigning the current grid state back
         self.state_grid = next_grid
         self.curr_iter += 1
-        self._save_to_grid_history()
+        self._save_to_history()
 
         if stop_when_no_change:
             return True
@@ -200,10 +288,17 @@ class CellularAutomaton():
         :raises ValueError: If specified iteration number is not within [0, current iteration]
         """
         self._check_iteration_number(i_reset)
+
+        # check nothing has been saved so far, then do nothing
+        if len(self.state_grid_history) == 0:
+            return
+
         self.state_grid = self.state_grid_history[i_reset].copy()
+        self.pedestrians = deepcopy(self.pedestrians_history[i_reset])
 
         for i in range(i_reset + 1, self.curr_iter + 1):
             del self.state_grid_history[i]
+            del self.pedestrians_history[i]
 
         self.curr_iter = i_reset
 
@@ -285,11 +380,12 @@ class CellularAutomaton():
             move, surpess_error=True)}  # type: ignore
         return surrounding_idx  # type: ignore
 
-    def _save_to_grid_history(self) -> None:
+    def _save_to_history(self) -> None:
         """
         Add copy of current grid property as an entry to the grid history dict, where the key is the curr_iter.
         """
         self.state_grid_history[self.curr_iter] = self.state_grid.copy()
+        self.pedestrians_history[self.curr_iter] = deepcopy(self.pedestrians)
 
     def _check_iteration_number(self, i_to_check: int) -> None:
         """
@@ -412,26 +508,34 @@ def fill_from_scenario_file(scenario_file: str) -> CellularAutomaton:
     - 'initial_position_obstacles', tuples of form (x, y), one tuple per row, specifies obstacles positions
     - 'position_target_zone', tuples of form (x, y), one tuple per row, specifies target positions
     - 'initial_position_pedestrian', tuples of form (x, y), one tuple per row, specifies pedestrian positions
+    - 'avg_velocity_pedestrian', float value for avg. pedestrian speed in cell units per iteration
+
+    Number of pedestrian entries needs to match.
 
     :param scenario_file: Path to .csv file
+    :raises ValueError: If number of values for pedestrians do not match
     :return: CellularAutomaton object matching the scenario file configuration
     """
     df = pd.read_csv(scenario_file, delimiter=';')
 
     grid_size = make_tuple(df['grid_size'][0])
-    obstacle_positions = df['initial_position_obstacles']
-    target_positions = df['position_target_zone']
-    pedestrian_positions = df['initial_position_pedestrian']
+    obstacle_positions = df['initial_position_obstacles'].dropna()
+    target_positions = df['position_target_zone'].dropna()
+    pedestrian_positions = df['initial_position_pedestrian'].dropna()
+    pedestrian_speeds = df['avg_velocity_pedestrian'].dropna()
+
+    if len(pedestrian_positions) != len(pedestrian_speeds):
+        raise ValueError('Need same amount of entries for all pedestrian values')
 
     my_cellular_automaton = CellularAutomaton(grid_size)
 
     for obstacle_position in obstacle_positions:
-        my_cellular_automaton.add(CellState.OBSTACLE, make_tuple(obstacle_position))
+        my_cellular_automaton.add_obstacle(make_tuple(obstacle_position))
 
     for target_position in target_positions:
-        my_cellular_automaton.add(CellState.TARGET, make_tuple(target_position))
+        my_cellular_automaton.add_target(make_tuple(target_position))
 
-    for pedestrian_position in pedestrian_positions:
-        my_cellular_automaton.add(CellState.PEDESTRIAN, make_tuple(pedestrian_position))
+    for pedestrian_position, speed in zip(pedestrian_positions, pedestrian_speeds):
+        my_cellular_automaton.add_pedestrian(make_tuple(pedestrian_position), float(speed))
 
     return my_cellular_automaton
