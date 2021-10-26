@@ -3,6 +3,8 @@ from typing import Optional, Dict
 import numpy as np
 import pandas as pd
 from ast import literal_eval as make_tuple
+from copy import deepcopy
+from collections import namedtuple
 
 
 class CellState(Enum):
@@ -179,41 +181,81 @@ class CellularAutomaton():
         utility_grid = self._get_dijkstra_utility_grid(state_grid, smart_obstacle_avoidance)
         next_grid = self.state_grid.copy()
 
+        LastStep = namedtuple('LastStep', 'error state_grid pedestrians')
+
         # Iterate over pedestrians
+        skip_pedestrian = False
+        if len(self.pedestrians) == 0 and stop_when_no_change:
+            return False
         for i, pedestrian in enumerate(self.pedestrians):
             curr_idx = pedestrian['pos']
 
             # consistency check if pedestrian also on state grid
             assert self.state_grid[curr_idx] == CellState.PEDESTRIAN, 'Pedestrian list does not match cell states grid.'
 
-            surrounding_idx = self._get_surrounding_idx(curr_idx)
+            # check how many steps are best
+            error_not_moving = abs(pedestrian['travelled'] / (self.curr_iter + 1) - pedestrian['speed'])
+            last_step = LastStep(error_not_moving, next_grid.copy(), deepcopy(self.pedestrians))
 
-            # look around and keep track of cell with best utility
-            best_utility = utility_grid[curr_idx]
-            best_idx = curr_idx
-            for potential_next_idx in surrounding_idx:
-                if next_grid[potential_next_idx] in [CellState.PEDESTRIAN]:
-                    continue
-                if not target_absorbs and next_grid[potential_next_idx] == CellState.TARGET:
-                    continue
-                if utility_grid[potential_next_idx] < best_utility:
-                    best_utility = utility_grid[potential_next_idx]
-                    best_idx = potential_next_idx
+            potential_next_grid = next_grid.copy()
+            potential_next_pedestrians = self.pedestrians.copy()
+            num_steps = 1
+            while(True):
+                surrounding_idx = self._get_surrounding_idx(curr_idx)
 
-            # nothing to do if already on best cell
-            if best_idx == curr_idx:
-                continue
+                # look around and keep track of cell with best utility
+                best_utility = utility_grid[curr_idx]
+                best_idx = curr_idx
+                for potential_next_idx in surrounding_idx:
+                    if potential_next_grid[potential_next_idx] in [CellState.PEDESTRIAN]:
+                        skip_pedestrian = True
+                        break
+                    if not target_absorbs and potential_next_grid[potential_next_idx] == CellState.TARGET:
+                        skip_pedestrian = True
+                        break
+                    if utility_grid[potential_next_idx] < best_utility:
+                        best_utility = utility_grid[potential_next_idx]
+                        best_idx = potential_next_idx
 
-            # otherwise propagate forward
-            next_grid[curr_idx] = CellState.EMPTY
-            if not self.state_grid[best_idx] == CellState.TARGET:
-                next_grid[best_idx] = CellState.PEDESTRIAN
-                pedestrian['pos'] = best_idx
-                pedestrian['travelled'] += np.linalg.norm(np.array(curr_idx) - np.array(best_idx))
-            else:
-                del self.pedestrians[i]
+                # nothing to do if already on best cell
+                # we use last step as optimum = nothing to do
+                if best_idx == curr_idx:
+                    skip_pedestrian = True
+                    next_grid = last_step.state_grid.copy()
+                    self.pedestrians = deepcopy(last_step.pedestrians)
+                    break
 
-        if stop_when_no_change and (np.array_equal(next_grid, self.state_grid)):
+                # otherwise propagate forward
+                potential_next_grid[curr_idx] = CellState.EMPTY
+                # if pedestrian moves to regular cell
+                if not self.state_grid[best_idx] == CellState.TARGET:
+                    potential_next_grid[best_idx] = CellState.PEDESTRIAN
+                    pedestrian['pos'] = best_idx
+                    pedestrian['travelled'] += np.linalg.norm(np.array(curr_idx) - np.array(best_idx))
+                # if pedestrian steps on target and is absorbed, we use this step as the optimum
+                else:
+                    del potential_next_pedestrians[i]
+                    next_grid = potential_next_grid.copy()
+                    self.pedestrians = deepcopy(potential_next_pedestrians)
+                    break
+
+                # keep track of errors
+                error = abs(pedestrian['travelled'] / (self.curr_iter + 1) - pedestrian['speed'])
+                # if error is again increasing, use last step as optimum
+                if error > last_step.error:
+                    next_grid = last_step.state_grid.copy()
+                    self.pedestrians = deepcopy(last_step.pedestrians)
+                    break
+                # otherwise continue
+                last_step = LastStep(error, potential_next_grid.copy(), deepcopy(potential_next_pedestrians))
+                # set for next iteration
+                curr_idx = best_idx
+                num_steps += 1
+
+            if skip_pedestrian:
+                break
+
+        if skip_pedestrian and stop_when_no_change and (np.array_equal(next_grid, self.state_grid)):
             return False
 
         self.state_grid = next_grid
