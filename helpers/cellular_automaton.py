@@ -170,6 +170,7 @@ class CellularAutomaton():
         Only cells that are no obstacles are considered.
 
         @TODO make pedestrian check implicit by adding a pedestrian based utiliy on top of positional utility grid
+        :param utility_grid_obstacles: Obstacle based utility grid, same shape as self.state_grid
         :param stop_when_no_change: Optional flag wether to stop when there is no change happening and to then return
             False
         :param target_absorbs: Optional flag that tells if a pedestrian is absorbed when going onto the target or not
