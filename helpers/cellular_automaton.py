@@ -241,7 +241,7 @@ class CellularAutomaton():
                 # therefore we compare this step with previous one and choose better
                 else:
                     if error <= last_step.error:
-                        del potential_next_pedestrians[i]
+                        del potential_next_pedestrians[i - deleted]
                         deleted += 1  # manual correction for the deletion, needed since we are iterating over it
                         next_grid = potential_next_grid.copy()
                         self.pedestrians = deepcopy(potential_next_pedestrians)
