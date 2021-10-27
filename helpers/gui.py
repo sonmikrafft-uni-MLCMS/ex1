@@ -20,7 +20,7 @@ class GUI:
         self.add_static_text_descriptors()
         self.add_dynamic_text_descriptors("No Scenario File Selected", n_rows, n_cols, n_pedestrians, n_obstacles, n_targets)
         self.add_dynamic_elements()
-
+        self.time_step_label = None
 
     def update_scenario(self, scenario_file: str):
         
@@ -32,16 +32,16 @@ class GUI:
         self.delete_dynamic_text_descriptors()
 
         #Assign Values from scenario
-        n_rows, n_cols = self.my_cellular_automaton.state_grid.shape
+        self.n_rows, self.n_cols = self.my_cellular_automaton.state_grid.shape
         n_pedestrians = (self.my_cellular_automaton.state_grid == CellState.PEDESTRIAN).sum()
         n_obstacles = (self.my_cellular_automaton.state_grid == CellState.OBSTACLE).sum()
         n_targets = (self.my_cellular_automaton.state_grid == CellState.TARGET).sum()
 
         #add new values to canvas for visualisation
-        self.add_dynamic_text_descriptors(rel_scenario_file_path, n_rows, n_cols, n_pedestrians, n_obstacles, n_targets)
+        self.add_dynamic_text_descriptors(rel_scenario_file_path, self.n_rows, self.n_cols, n_pedestrians, n_obstacles, n_targets)
         
         # visualize start state by iterating over our state_grid
-        self.setup_grid(n_rows, n_cols)
+        self.setup_grid(self.n_rows, self.n_cols)
         self.visualize_state()    
 
     def delete_dynamic_text_descriptors(self):
@@ -127,11 +127,11 @@ class GUI:
         btn_Choose_filename.place(x=900, y=25, anchor=N)
 
         btn_previous_simulation_step = tk.Button(self.myCanvas, text="Previous Step",
-                                            font="Times 9 bold", command=self.get_scenario_path)
+                                            font="Times 9 bold", command=self.visualize_previous_step)
         btn_previous_simulation_step.place(x=580, y=240, anchor=N)
 
         btn_next_simulation_step = tk.Button(self.myCanvas, text="Next Step",
-                                            font="Times 9 bold", command=btn_Choose_filename.pack_forget)
+                                            font="Times 9 bold", command=self.visualize_next_step)
         btn_next_simulation_step.place(x=655, y=240, anchor=N)
 
         #Initialise and Place Checkbox to GUI for Simulations parameters Obstacle Avoidance and Target Absorbation
@@ -166,11 +166,30 @@ class GUI:
         # TODO: redraw the GUI for current timestamp
         pass
         # display current time stamp in gui
-        self.myCanvas.create_text(
-            700, 200, text=f'Current Time Step: {n_current_time_step}', font="Times 15 bold", anchor=tk.N)
 
+
+    def visualize_previous_step(self):
         
+        if self.current_grid_id != 1:
+            previous_id = self.current_grid_id - 1
+            self.setup_grid(self.n_rows, self.n_cols)
+    
+            for grid in range(previous_id):
+                self.visualize_grid_state(self.my_cellular_automaton.state_grid_history[grid])
+            
+            self.update_time_step_label(previous_id)
 
+
+    def visualize_next_step(self):
+
+        if self.current_grid_id != self.last_grid_id:
+            next_id = self.current_grid_id + 1
+            self.setup_grid(self.n_rows, self.n_cols)
+    
+            for grid in range(next_id):
+                self.visualize_grid_state(self.my_cellular_automaton.state_grid_history[grid])
+            
+            self.update_time_step_label(next_id)
 
     def simulation_settings(self):
         # TODO: gets user input for start and end -> Missing: 1. Run internally whole simulation 2. access position history array 3. display
@@ -198,13 +217,28 @@ class GUI:
         print(n_start_time)
         print(n_end_time)
 
+    def update_time_step_label(self, current_grid):
+
+        self.current_grid_id = current_grid
+
+        if self.time_step_label is not None:
+            self.myCanvas.delete(self.time_step_label)
+        self.time_step_label = self.myCanvas.create_text(
+            710, 205, text=f'Time Step: {current_grid} of {self.last_grid_id}', font="Times 10 bold", anchor=tk.N)
+
     def start_simulation(self):
         self.my_cellular_automaton.simulate_until_no_change()
         simulated_grid_states = self.my_cellular_automaton.state_grid_history
-        
+        self.last_grid_id = max(simulated_grid_states, key=int)
+        self.update_time_step_label(self.last_grid_id)
+
         for current_grid in simulated_grid_states:
             self.visualize_grid_state(simulated_grid_states[current_grid])
             
+
+        
+        print(self.last_grid_id)
+
     def visualize_grid_state(self, grid):
         rows, cols = grid.shape
         for ix in range(0, rows):
@@ -219,7 +253,9 @@ class GUI:
         self.myCanvas.delete()
 
     def reset_simulation(self):
-        CellularAutomaton.reset_to_iteration(0)
+        self.setup_grid(self.n_rows, self.n_cols)
+        self.visualize_grid_state(self.my_cellular_automaton.state_grid_history[0])
+        self.update_time_step_label(1)
 
     def setup_container(self, root):
         self.container = tk.Frame(root)
