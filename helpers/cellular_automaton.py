@@ -126,9 +126,10 @@ class CellularAutomaton():
         :param target_absorbs: Optional flag that tells if a pedestrian is absorbed when going onto the target or not
             Defaults to true
         """
+        utility_grid = self._get_dijkstra_utility_grid(
+            self.state_grid, smart_obstacle_avoidance=smart_obstacle_avoidance)
         while(True):
-            change = self.simulate_next(smart_obstacle_avoidance=smart_obstacle_avoidance,
-                                        target_absorbs=target_absorbs)
+            change = self._simulate_next(utility_grid, target_absorbs=target_absorbs)
             if (change is not None) and (not change):
                 return
 
@@ -148,9 +149,10 @@ class CellularAutomaton():
             True = During n steps, there always was a change
             False = Interrupted since there was no change at some point
         """
+        utility_grid = self._get_dijkstra_utility_grid(
+            self.state_grid, smart_obstacle_avoidance=smart_obstacle_avoidance)
         for _ in range(n):
-            change = self.simulate_next(smart_obstacle_avoidance=smart_obstacle_avoidance,
-                                        target_absorbs=target_absorbs)
+            change = self._simulate_next(utility_grid, target_absorbs=target_absorbs)
             if not change and stop_when_no_change:
                 return False
 
@@ -159,8 +161,8 @@ class CellularAutomaton():
 
         return None
 
-    def simulate_next(self, stop_when_no_change: bool = True, smart_obstacle_avoidance: bool = True,
-                      target_absorbs: bool = True) -> Optional[bool]:
+    def _simulate_next(self, utility_grid: np.ndarray, stop_when_no_change: bool = True,
+                       target_absorbs: bool = True) -> Optional[bool]:
         """
         Propogate states of pedestrian one forward and add new grid state into the history.
 
@@ -170,8 +172,6 @@ class CellularAutomaton():
         @TODO make pedestrian check implicit by adding a pedestrian based utiliy on top of positional utility grid
         :param stop_when_no_change: Optional flag wether to stop when there is no change happening and to then return
             False
-        :param smart_obstacle_avoidance: Optional flag wether intelligent obstacle avoidance is active
-            Defaults to true
         :param target_absorbs: Optional flag that tells if a pedestrian is absorbed when going onto the target or not
             Defaults to true
         :return: Optionally return True / False when stop_when_no_change is set.
@@ -179,8 +179,6 @@ class CellularAutomaton():
             False = There was no change
         """
         self._save_to_history()
-        state_grid = self.state_grid
-        utility_grid = self._get_dijkstra_utility_grid(state_grid, smart_obstacle_avoidance)
         next_grid = self.state_grid.copy()
         LastStep = namedtuple('LastStep', 'error state_grid pedestrians')
 
@@ -436,7 +434,8 @@ class CellularAutomaton():
         targets = [tuple(a) for a in np.argwhere(state_grid == CellState.TARGET)]
 
         for target in targets:
-            utitliy_grid = self._set_dijkstra_for_one_target(target, state_grid, utitliy_grid, smart_obstacle_avoidance)
+            utitliy_grid = self._set_dijkstra_for_one_target(
+                target, state_grid, utitliy_grid, smart_obstacle_avoidance)  # type: ignore
 
         # very basic obstacle avoidance
         utitliy_grid[state_grid == CellState.OBSTACLE] = np.inf
