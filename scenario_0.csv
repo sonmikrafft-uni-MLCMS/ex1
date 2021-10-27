@@ -1,2 +1,6 @@
 ﻿grid_size;initial_position_obstacles;position_target_zone;pedestrian_id;initial_position_pedestrian;avg_velocity_pedestrian
+<<<<<<< HEAD
 (10, 10);(3, 3);(4, 4);1;(2, 2);1
+=======
+(30, 30);(3, 3);(23, 27);1;(2, 2);1,5
+>>>>>>> origin/main
