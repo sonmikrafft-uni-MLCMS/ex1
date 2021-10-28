@@ -77,19 +77,20 @@ class CellularAutomaton():
         self._check_empty(pos_idx)
         self.state_grid[(pos_idx)] = CellState.TARGET
 
-    def add_pedestrian(self, pos_idx: tuple[int, int], speed_desired: float) -> None:
+    def add_pedestrian(self, pos_idx: tuple[int, int], speed_desired: float, **kwargs) -> None:
         """
         Fill a yet empty cell with either a pedestrian, an obstace, or a target.
 
         :param pos_idx: Tuple of 2D index on which cell to fill
         :param speed_desired: Speed of the pedestrian in cell units per iteration
+        :param kwargs: Optional additional custom properties, pass as named arguments
         :raises ValueError: If cell is not empty
         :raises IndexError: If given index is invalid, either because index is negative or out of bounds
         """
         self._check_empty(pos_idx)
         self.state_grid[(pos_idx)] = CellState.PEDESTRIAN
 
-        pedestrian = {
+        pedestrian = kwargs | {
             'speed_desired': speed_desired,  # desired average speed when moving
             'start_pos': pos_idx,  # starting position as tuple of row, col
             'curr_pos': pos_idx,  # current position as tuple of row, col id
@@ -529,11 +530,18 @@ def fill_from_scenario_file(scenario_file: str) -> CellularAutomaton:
     """
     df = pd.read_csv(scenario_file, delimiter=';')
 
+    # required properties
     grid_size = make_tuple(df['grid_size'][0])
     obstacle_positions = df['initial_position_obstacles'].dropna()
     target_positions = df['position_target_zone'].dropna()
     pedestrian_positions = df['initial_position_pedestrian'].dropna()
     pedestrian_speeds_desired = df['avg_velocity_pedestrian'].dropna()
+    # custom pedestrian properties
+    custom_pedestrian_props = {}
+    custom_pedestrian_prefix = '_pedestrian_'
+    for pedestrian_column_name in filter(lambda x: custom_pedestrian_prefix in x, df.columns):
+        name = pedestrian_column_name[len(custom_pedestrian_prefix):]
+        custom_pedestrian_props[name] = df[pedestrian_column_name].dropna()
 
     if len(pedestrian_positions) != len(pedestrian_speeds_desired):
         raise ValueError('Need same amount of entries for all pedestrian values')
@@ -546,7 +554,14 @@ def fill_from_scenario_file(scenario_file: str) -> CellularAutomaton:
     for target_position in target_positions:
         my_cellular_automaton.add_target(make_tuple(target_position))
 
-    for pedestrian_position, speed_desired in zip(pedestrian_positions, pedestrian_speeds_desired):
-        my_cellular_automaton.add_pedestrian(make_tuple(pedestrian_position), float(speed_desired))
+    for i in range(len(pedestrian_positions)):
+        pedestrian_position = pedestrian_positions[i]
+        speed_desired = pedestrian_speeds_desired[i]
+
+        custom_props = {}
+        for custom_pedestrian_property_name, values in custom_pedestrian_props.items():
+            custom_props[custom_pedestrian_property_name] = values[i]
+
+        my_cellular_automaton.add_pedestrian(make_tuple(pedestrian_position), float(speed_desired), **custom_props)
 
     return my_cellular_automaton
