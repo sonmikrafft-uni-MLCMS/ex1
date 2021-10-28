@@ -25,8 +25,10 @@ class GUI:
     def update_scenario(self, scenario_file: str):
         
         #Read in new scenariofile 
-        rel_scenario_file_path = os.path.basename(scenario_file)
-        self.my_cellular_automaton = fill_from_scenario_file(rel_scenario_file_path)
+       
+        #rel_scenario_file_path = "\mlcs-ex1-modeling-crowds-2\scenario_0.csv"
+
+        self.my_cellular_automaton = fill_from_scenario_file(scenario_file=scenario_file)
         
         #Prepare dynamic text labels for new update values
         self.delete_dynamic_text_descriptors()
@@ -36,9 +38,9 @@ class GUI:
         n_pedestrians = (self.my_cellular_automaton.state_grid == CellState.PEDESTRIAN).sum()
         n_obstacles = (self.my_cellular_automaton.state_grid == CellState.OBSTACLE).sum()
         n_targets = (self.my_cellular_automaton.state_grid == CellState.TARGET).sum()
-
+        print(self.n_cols)
         #add new values to canvas for visualisation
-        self.add_dynamic_text_descriptors(rel_scenario_file_path, self.n_rows, self.n_cols, n_pedestrians, n_obstacles, n_targets)
+        self.add_dynamic_text_descriptors(scenario_file, self.n_rows, self.n_cols, n_pedestrians, n_obstacles, n_targets)
         
         # visualize start state by iterating over our state_grid
         self.setup_grid(self.n_rows, self.n_cols)
@@ -81,6 +83,7 @@ class GUI:
 
         #Adds text to GUI in order to describe the choosen scenario
         self.title_label = self.myCanvas.create_text(700, 10, text='Scenario Details:', font="Times 15 bold", anchor=tk.N)
+        self.settings_label = self.myCanvas.create_text(620, 290, text='Simulation Settings:', font="Times 15 bold", anchor=tk.N)
 
         #Visualize Caption to explain colored rectangles as used in grid visualization  
         self.myCanvas.create_rectangle(540,160,555,175, fill='red')
@@ -97,8 +100,8 @@ class GUI:
 
 
     def add_dynamic_text_descriptors(self, scenario_file: str, n_rows, n_cols, n_pedestrians, n_obstacles, n_targets):
-
-        self.file_label = self.myCanvas.create_text(700, 35, text=f'Displayed File: {scenario_file}', font="Times 10 bold", anchor=tk.N)
+        rel_scenario_file_path = os.path.basename(scenario_file)
+        self.file_label = self.myCanvas.create_text(700, 35, text=f'Displayed File: {rel_scenario_file_path}', font="Times 10 bold", anchor=tk.N)
         self.grid_size_label = self.grid_size = self.myCanvas.create_text(700, 70, text=f'Grid Size: {n_rows} x  {n_cols}', font="Times 12 bold", anchor=tk.N)
         self.n_pedestrians_label = self.myCanvas.create_text(
             700, 90, text=f'Number of Pedestrians: {n_pedestrians}', font="Times 12 bold", anchor=tk.N)
@@ -118,10 +121,6 @@ class GUI:
                                          font="Times 9 bold", command=self.reset_simulation)
         btn_reset_simulation.place(x=740, y=240, anchor=N)
 
-        btn_simulation_settings = tk.Button(self.myCanvas, text="Simulation Settings",
-                                            font="Times 12 bold", command=self.simulation_settings)
-        btn_simulation_settings.place(x=610, y=310, anchor=N)
-
         btn_Choose_filename = tk.Button(self.myCanvas, text="Choose Filename",
                                             font="Times 10 bold", command=self.get_scenario_path)
         btn_Choose_filename.place(x=900, y=25, anchor=N)
@@ -140,18 +139,19 @@ class GUI:
         self.cbx_val_obstacle_avoidance.set(True)
 
         cbx_obstacle_avoidance = tk.Checkbutton(self.myCanvas, text="Obstacle Avoidance", variable=self.cbx_val_obstacle_avoidance, command=self.cbx_update_obstacle_avoidance)                       
-        cbx_obstacle_avoidance.place(x=607, y=350, anchor=N)                                          
+        cbx_obstacle_avoidance.place(x=607, y=330, anchor=N)                                          
 
         self.cbx_val_target_absorbation = tk.BooleanVar()
         self.cbx_val_target_absorbation.set(True)
 
         cbx_target_absorbation = tk.Checkbutton(self.myCanvas, text="Target Absorbation",variable=self.cbx_val_target_absorbation, command=self.cbx_update_target_absorbation)                                      
-        cbx_target_absorbation.place(x=605, y=380, anchor=N)                                   
+        cbx_target_absorbation.place(x=605, y=360, anchor=N)                                   
         
 
     def get_scenario_path(self):
         #Chosoe a scenario file
         scenario_file_path= askopenfilename()
+        print(scenario_file_path)
         self.update_scenario(scenario_file = scenario_file_path)
 
 
@@ -162,11 +162,6 @@ class GUI:
 
     def cbx_update_target_absorbation(self):
         self.bool_target_absorbation = self.cbx_val_target_absorbation.get()
-
-    def redraw_grid(self, n_current_time_step):
-        # TODO: redraw the GUI for current timestamp
-        pass
-        # display current time stamp in gui
 
 
     def visualize_previous_step(self):
@@ -192,31 +187,6 @@ class GUI:
             
             self.update_time_step_label(next_id)
 
-    def simulation_settings(self):
-        # TODO: gets user input for start and end -> Missing: 1. Run internally whole simulation 2. access position history array 3. display
-        master = tk.Tk()
-        master.title("Specifiy your Simulation Time Frame ")
-        master.geometry("375x80")
-
-        tk.Label(master, text="Start Time Step").grid(row=0)
-        tk.Label(master, text="End Time Step").grid(row=1)
-
-        entry1 = tk.Entry(master)
-        entry2 = tk.Entry(master)
-
-        entry1.grid(row=0, column=1)
-        entry2.grid(row=1, column=1)
-
-        tk.Button(master, text='Start Simulation', command=lambda: [self.start_specified_simulation(
-            entry1.get(), entry2.get()), master.destroy()]).grid(row=3, column=0, sticky=tk.W, pady=8)
-        tk.Button(master, text='Cancel', command=master.destroy).grid(row=3, column=1, sticky=tk.W, pady=8)
-
-        master.mainloop()
-
-    def start_specified_simulation(self, n_start_time, n_end_time):
-        # TODO: write fct to run simulation from user input time stamp till user given time step
-        print(n_start_time)
-        print(n_end_time)
 
     def update_time_step_label(self, current_grid):
 
@@ -229,7 +199,6 @@ class GUI:
 
     def start_simulation(self):
 
-        
         self.cbx_update_obstacle_avoidance()
         self.cbx_update_target_absorbation()
 
@@ -248,13 +217,7 @@ class GUI:
         for ix in range(0, rows):
             for iy in range(0, cols):
                 cell = grid[ix, iy]
-                self.add_item_to_grid(ix, iy, cell)
-            
-        #self.cbx_val_obstacle_avoidance.get(), self.cbx_val_target_absorbation.get()
-
-    def delete_grid(self):
-        #TODO: not working properly at the moment
-        self.myCanvas.delete()
+                self.add_item_to_grid(ix, iy, cell)          
 
     def reset_simulation(self):
         self.setup_grid(self.n_rows, self.n_cols)
@@ -267,15 +230,16 @@ class GUI:
 
     def setup_canvas(self):
         window_width = 1000
-        window_height = 400
+        window_height = 1000
+
 
         self.myCanvas = tk.Canvas(self.container, width=window_width, height=window_height,
                                   highlightthickness=0, background="grey")
         self.myCanvas.pack(side="top", fill="both", expand="true")
 
     def setup_grid(self, n_rows: int, n_cols: int):
-        cell_width = 2
-        cell_height = 2
+        cell_width = 20
+        cell_height = 20
 
         self.gui_rect = [[None for _ in range(n_cols)] for _ in range(n_rows)]
         for column in range(n_cols):
