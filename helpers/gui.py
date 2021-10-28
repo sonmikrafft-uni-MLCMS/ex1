@@ -135,18 +135,17 @@ class GUI:
         btn_next_simulation_step.place(x=655, y=240, anchor=N)
 
         #Initialise and Place Checkbox to GUI for Simulations parameters Obstacle Avoidance and Target Absorbation
+        
         self.cbx_val_obstacle_avoidance = tk.BooleanVar()
         self.cbx_val_obstacle_avoidance.set(True)
 
-        cbx_obstacle_avoidance = tk.Checkbutton(self.myCanvas, text="Obstacle Avoidance", variable=self.cbx_val_obstacle_avoidance, 
-                                                command=self.cbx_update_obstacle_avoidance)
+        cbx_obstacle_avoidance = tk.Checkbutton(self.myCanvas, text="Obstacle Avoidance", variable=self.cbx_val_obstacle_avoidance, command=self.cbx_update_obstacle_avoidance)                       
         cbx_obstacle_avoidance.place(x=607, y=350, anchor=N)                                          
 
         self.cbx_val_target_absorbation = tk.BooleanVar()
         self.cbx_val_target_absorbation.set(True)
 
-        cbx_target_absorbation = tk.Checkbutton(self.myCanvas, text="Target Absorbation",variable=self.cbx_val_target_absorbation,
-                                                 command=self.cbx_update_target_absorbation)
+        cbx_target_absorbation = tk.Checkbutton(self.myCanvas, text="Target Absorbation",variable=self.cbx_val_target_absorbation, command=self.cbx_update_target_absorbation)                                      
         cbx_target_absorbation.place(x=605, y=380, anchor=N)                                   
         
 
@@ -157,10 +156,12 @@ class GUI:
 
 
     def cbx_update_obstacle_avoidance(self):
-        print(self.cbx_val_obstacle_avoidance.get())
+        self.bool_obstacle_avoidance = self.cbx_val_obstacle_avoidance.get()
+        
+        
 
     def cbx_update_target_absorbation(self):
-        print(self.cbx_val_target_absorbation.get())
+        self.bool_target_absorbation = self.cbx_val_target_absorbation.get()
 
     def redraw_grid(self, n_current_time_step):
         # TODO: redraw the GUI for current timestamp
@@ -224,21 +225,24 @@ class GUI:
         if self.time_step_label is not None:
             self.myCanvas.delete(self.time_step_label)
         self.time_step_label = self.myCanvas.create_text(
-            710, 205, text=f'Time Step: {current_grid} of {self.last_grid_id}', font="Times 10 bold", anchor=tk.N)
+            715, 205, text=f'Time Step: {current_grid} of {self.last_grid_id}', font="Times 10 bold", anchor=tk.N)
 
     def start_simulation(self):
-        self.my_cellular_automaton.simulate_until_no_change()
+
+        
+        self.cbx_update_obstacle_avoidance()
+        self.cbx_update_target_absorbation()
+
+        self.my_cellular_automaton.simulate_until_no_change(smart_obstacle_avoidance=self.bool_obstacle_avoidance, target_absorbs=self.bool_target_absorbation)
         simulated_grid_states = self.my_cellular_automaton.state_grid_history
         self.last_grid_id = max(simulated_grid_states, key=int)
-        self.update_time_step_label(self.last_grid_id)
 
+        self.update_time_step_label(self.last_grid_id)
+        
+        self.setup_grid(self.n_rows, self.n_cols)
         for current_grid in simulated_grid_states:
             self.visualize_grid_state(simulated_grid_states[current_grid])
             
-
-        
-        print(self.last_grid_id)
-
     def visualize_grid_state(self, grid):
         rows, cols = grid.shape
         for ix in range(0, rows):
@@ -263,15 +267,15 @@ class GUI:
 
     def setup_canvas(self):
         window_width = 1000
-        window_height = 1000
+        window_height = 400
 
         self.myCanvas = tk.Canvas(self.container, width=window_width, height=window_height,
                                   highlightthickness=0, background="grey")
         self.myCanvas.pack(side="top", fill="both", expand="true")
 
     def setup_grid(self, n_rows: int, n_cols: int):
-        cell_width = 40
-        cell_height = 40
+        cell_width = 2
+        cell_height = 2
 
         self.gui_rect = [[None for _ in range(n_cols)] for _ in range(n_rows)]
         for column in range(n_cols):
