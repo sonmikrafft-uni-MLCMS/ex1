@@ -246,7 +246,7 @@ class CellularAutomaton():
                     if error <= last_step.error:
                         # save finished pedestrian and the iteration at that time
                         pedestrian_copy = deepcopy(pedestrian)
-                        pedestrian_copy['finish_iteration'] = self.curr_iter
+                        pedestrian_copy['finish_iteration'] = self.curr_iter + 1
                         self.finished_pedestrians.append(pedestrian_copy)
 
                         del potential_next_pedestrians[i - deleted]
