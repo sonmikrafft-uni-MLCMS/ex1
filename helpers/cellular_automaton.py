@@ -121,6 +121,15 @@ class CellularAutomaton():
         output_str = '[' + ']\n['.join(['  '.join([str(cell) for cell in row]) for row in visualized_grid]) + ']'
         print(output_str)
 
+    def visualize_simulation(self) -> None:
+        """
+        Visualizes all simulated state grids one iteration after the other.
+        """
+        for i in range(self.curr_iter + 1):
+            print(f'Iteration {i}:')
+            self.visualize_state_grid(iteration=i)
+            print()
+
     def simulate_until_no_change(self, smart_obstacle_avoidance: bool = True, target_absorbs: bool = True) -> None:
         """
         Simulate until there is no change.
@@ -156,7 +165,8 @@ class CellularAutomaton():
         utility_grid_obstacles = self._get_dijkstra_utility_grid(
             self.state_grid, smart_obstacle_avoidance=smart_obstacle_avoidance)
         for _ in range(n):
-            change = self._simulate_next(utility_grid_obstacles, target_absorbs=target_absorbs)
+            change = self._simulate_next(utility_grid_obstacles, stop_when_no_change=stop_when_no_change,
+                                         target_absorbs=target_absorbs)
             if not change and stop_when_no_change:
                 return False
 
