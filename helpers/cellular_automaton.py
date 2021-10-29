@@ -165,7 +165,8 @@ class CellularAutomaton():
         utility_grid_obstacles = self._get_dijkstra_utility_grid(
             self.state_grid, smart_obstacle_avoidance=smart_obstacle_avoidance)
         for _ in range(n):
-            change = self._simulate_next(utility_grid_obstacles, target_absorbs=target_absorbs)
+            change = self._simulate_next(utility_grid_obstacles, stop_when_no_change=stop_when_no_change,
+                                         target_absorbs=target_absorbs)
             if not change and stop_when_no_change:
                 return False
 
