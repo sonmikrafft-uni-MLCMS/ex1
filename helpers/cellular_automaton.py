@@ -97,6 +97,7 @@ class CellularAutomaton():
             'curr_pos': pos_idx,  # current position as tuple of row, col id
             'travelled': 0,  # keeps track of total distance travelled
             'skips': 0,  # keeps track of iterations where not able to move
+            'id': len(self.pedestrians)  # id to keep track
         }
 
         self.pedestrians.append(pedestrian)
