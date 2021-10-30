@@ -5,6 +5,7 @@ import pandas as pd
 from ast import literal_eval as make_tuple
 from copy import deepcopy
 from collections import namedtuple
+from random import shuffle
 
 
 class CellState(Enum):
@@ -196,6 +197,7 @@ class CellularAutomaton():
         self._save_to_history()
         next_grid = self.state_grid.copy()
         LastStep = namedtuple('LastStep', 'error state_grid pedestrians')
+        shuffle(self.pedestrians)  # always change the order who is allowed to move first
 
         # 1 >>>> Iterate over pedestrians >>>>
 
