@@ -238,8 +238,8 @@ class GUI:
         self.myCanvas.pack(side="top", fill="both", expand="true")
 
     def setup_grid(self, n_rows: int, n_cols: int):
-        cell_width = 20
-        cell_height = 20
+        cell_width = 10
+        cell_height = 10
 
         self.gui_rect = [[None for _ in range(n_cols)] for _ in range(n_rows)]
         for column in range(n_cols):

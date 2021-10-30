@@ -1,5 +1,5 @@
 ﻿grid_size;initial_position_obstacles;position_target_zone;pedestrian_id;initial_position_pedestrian;avg_velocity_pedestrian
-(50, 50);;(25, 25);1;(45, 25);1.0
+(50, 50);;(25, 25);1;(46, 25);1.0
 ;;;2;(31,6);1.0
 ;;;3;(9,13);1.0
 ;;;4;(9,37);1.0
