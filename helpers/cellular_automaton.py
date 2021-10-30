@@ -238,7 +238,7 @@ class CellularAutomaton():
                     next_grid = last_step.state_grid.copy()
                     self.pedestrians = deepcopy(last_step.pedestrians)
                     if num_steps == 1:
-                        self.pedestrians[i]['skips'] += 1  # only when not moving
+                        self.pedestrians[i - deleted]['skips'] += 1  # only when not moving
                     break
 
                 # otherwise propagate forward
