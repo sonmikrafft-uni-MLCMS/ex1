@@ -221,14 +221,24 @@ class CellularAutomaton():
                 surrounding_idx = self._get_surrounding_idx(curr_idx)
                 best_utility = utility_grid_obstacles[curr_idx]
                 best_idx = curr_idx
+                best_distance = 0
                 for potential_next_idx in surrounding_idx:
                     if potential_next_grid[potential_next_idx] in [CellState.PEDESTRIAN]:
                         continue
                     if not target_absorbs and potential_next_grid[potential_next_idx] == CellState.TARGET:
                         continue
+                    # if utility is better, choose it directly
                     if utility_grid_obstacles[potential_next_idx] < best_utility:
                         best_utility = utility_grid_obstacles[potential_next_idx]
                         best_idx = potential_next_idx
+                        best_distance = np.linalg.norm(np.array(curr_idx) - np.array(potential_next_idx))
+                    # if utility is same, only choose if smaller travel distance
+                    if utility_grid_obstacles[potential_next_idx] == best_utility:
+                        distance = np.linalg.norm(np.array(curr_idx) - np.array(potential_next_idx))
+                        if (best_distance is None) or (distance < best_distance):
+                            best_utility = utility_grid_obstacles[potential_next_idx]
+                            best_idx = potential_next_idx
+                            best_distance = distance
                 # 3 <<<< For one step, iterate over surrounding cells, find best utility <<<<
 
                 # nothing to do if already on best cell
