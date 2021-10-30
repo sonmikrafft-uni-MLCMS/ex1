@@ -337,8 +337,8 @@ class CellularAutomaton():
 
         utility_grid_obstacles = self._get_dijkstra_utility_grid(state_grid, smart_obstacle_avoidance)
 
-        np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
-        print(utility_grid_obstacles)
+        with np.printoptions(precision=2, floatmode='fixed'):
+            print(utility_grid_obstacles)
 
     def _get_distance_based_utility_grid(self) -> np.ndarray:
         """
