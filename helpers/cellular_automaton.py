@@ -5,6 +5,7 @@ import pandas as pd
 from ast import literal_eval as make_tuple
 from copy import deepcopy
 from collections import namedtuple
+from random import shuffle
 
 
 class CellState(Enum):
@@ -96,6 +97,7 @@ class CellularAutomaton():
             'curr_pos': pos_idx,  # current position as tuple of row, col id
             'travelled': 0,  # keeps track of total distance travelled
             'skips': 0,  # keeps track of iterations where not able to move
+            'id': len(self.pedestrians)  # id to keep track
         }
 
         self.pedestrians.append(pedestrian)
@@ -120,6 +122,15 @@ class CellularAutomaton():
         visualized_grid = vfunc(grid_to_visualize)
         output_str = '[' + ']\n['.join(['  '.join([str(cell) for cell in row]) for row in visualized_grid]) + ']'
         print(output_str)
+
+    def visualize_simulation(self) -> None:
+        """
+        Visualizes all simulated state grids one iteration after the other.
+        """
+        for i in range(self.curr_iter + 1):
+            print(f'Iteration {i}:')
+            self.visualize_state_grid(iteration=i)
+            print()
 
     def simulate_until_no_change(self, smart_obstacle_avoidance: bool = True, target_absorbs: bool = True) -> None:
         """
@@ -156,7 +167,8 @@ class CellularAutomaton():
         utility_grid_obstacles = self._get_dijkstra_utility_grid(
             self.state_grid, smart_obstacle_avoidance=smart_obstacle_avoidance)
         for _ in range(n):
-            change = self._simulate_next(utility_grid_obstacles, target_absorbs=target_absorbs)
+            change = self._simulate_next(utility_grid_obstacles, stop_when_no_change=stop_when_no_change,
+                                         target_absorbs=target_absorbs)
             if not change and stop_when_no_change:
                 return False
 
@@ -186,6 +198,7 @@ class CellularAutomaton():
         self._save_to_history()
         next_grid = self.state_grid.copy()
         LastStep = namedtuple('LastStep', 'error state_grid pedestrians')
+        shuffle(self.pedestrians)  # always change the order who is allowed to move first
 
         # 1 >>>> Iterate over pedestrians >>>>
 
@@ -211,14 +224,24 @@ class CellularAutomaton():
                 surrounding_idx = self._get_surrounding_idx(curr_idx)
                 best_utility = utility_grid_obstacles[curr_idx]
                 best_idx = curr_idx
+                best_distance = 0
                 for potential_next_idx in surrounding_idx:
                     if potential_next_grid[potential_next_idx] in [CellState.PEDESTRIAN]:
                         continue
                     if not target_absorbs and potential_next_grid[potential_next_idx] == CellState.TARGET:
                         continue
+                    # if utility is better, choose it directly
                     if utility_grid_obstacles[potential_next_idx] < best_utility:
                         best_utility = utility_grid_obstacles[potential_next_idx]
                         best_idx = potential_next_idx
+                        best_distance = np.linalg.norm(np.array(curr_idx) - np.array(potential_next_idx))
+                    # if utility is same, only choose if smaller travel distance
+                    if utility_grid_obstacles[potential_next_idx] == best_utility:
+                        distance = np.linalg.norm(np.array(curr_idx) - np.array(potential_next_idx))
+                        if (best_distance is None) or (distance < best_distance):
+                            best_utility = utility_grid_obstacles[potential_next_idx]
+                            best_idx = potential_next_idx
+                            best_distance = distance
                 # 3 <<<< For one step, iterate over surrounding cells, find best utility <<<<
 
                 # nothing to do if already on best cell
@@ -228,7 +251,7 @@ class CellularAutomaton():
                     next_grid = last_step.state_grid.copy()
                     self.pedestrians = deepcopy(last_step.pedestrians)
                     if num_steps == 1:
-                        self.pedestrians[i]['skips'] += 1  # only when not moving
+                        self.pedestrians[i - deleted]['skips'] += 1  # only when not moving
                     break
 
                 # otherwise propagate forward
@@ -327,8 +350,8 @@ class CellularAutomaton():
 
         utility_grid_obstacles = self._get_dijkstra_utility_grid(state_grid, smart_obstacle_avoidance)
 
-        np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
-        print(utility_grid_obstacles)
+        with np.printoptions(precision=2, floatmode='fixed'):
+            print(utility_grid_obstacles)
 
     def _get_distance_based_utility_grid(self) -> np.ndarray:
         """
